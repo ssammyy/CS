@@ -1,0 +1,1144 @@
+/* Saam POS Component Styles following UI Design Language Rule */
+/* Uses approved color palette: Mint Green (#CBEBD0), Light Blue (#A1C7F8), Soft Coral (#F99E98) */
+
+.pos-container {
+  @apply h-screen flex flex-col bg-gray-50 overflow-hidden;
+}
+
+.pos-header {
+  @apply flex items-center justify-between p-6 bg-white border-b border-gray-200 flex-shrink-0;
+}
+
+.pos-content {
+  @apply flex-1 flex gap-6 p-6 overflow-hidden;
+  height: calc(100vh - 88px); /* Subtract header height */
+}
+
+.pos-left-panel {
+  @apply flex-1 basis-1/2 flex flex-col gap-6 overflow-y-auto;
+  max-height: 100%;
+}
+
+.pos-right-panel {
+  @apply flex-1 basis-1/2 flex flex-col gap-6 overflow-y-auto;
+  max-height: 100%;
+  
+  /* Ensure action buttons are always visible */
+  .action-buttons {
+    @apply flex-shrink-0 mt-auto;
+  }
+}
+
+/* Search Section */
+.search-section {
+  @apply bg-white rounded-lg border border-gray-200 p-6;
+}
+
+.search-header {
+  @apply flex items-center gap-3 mb-4;
+}
+
+.search-input-group {
+  @apply relative mb-4;
+}
+
+.search-input {
+  @apply relative flex gap-3;
+  
+  input {
+    @apply flex-1 px-4 py-3 text-lg border border-gray-200 rounded-lg;
+    @apply focus:border-brand-sky focus:ring-2 focus:ring-brand-sky/20;
+    @apply transition-colors duration-200;
+  }
+  
+  .clear-search-btn {
+    @apply absolute right-3 top-1/2 transform -translate-y-1/2;
+    @apply w-8 h-8 flex items-center justify-center rounded-full;
+    @apply bg-gray-200 text-gray-600 hover:bg-gray-300;
+    @apply transition-colors duration-200;
+  }
+}
+
+.search-results {
+  @apply absolute top-full left-0 right-0 z-50 mt-2;
+  @apply bg-white border border-gray-200 rounded-lg shadow-lg;
+  @apply max-h-80 overflow-y-auto;
+}
+
+.search-loading {
+  @apply flex items-center justify-center gap-2 p-4 text-gray-600;
+}
+
+.no-results {
+  @apply flex items-center justify-center gap-2 p-4 text-gray-500;
+}
+
+.results-list {
+  @apply divide-y divide-gray-100;
+}
+
+.result-item {
+  @apply bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md;
+  @apply transition-all duration-300 overflow-hidden;
+  margin-bottom: 12px;
+  
+  &.selected {
+    @apply border-brand-sky shadow-lg ring-2 ring-brand-sky/20;
+  }
+}
+
+.product-header {
+  @apply flex items-center justify-between p-4 cursor-pointer;
+  @apply hover:bg-gray-50 transition-colors duration-200;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.product-info {
+  @apply flex-1;
+  
+  .product-name {
+    @apply text-lg font-semibold text-gray-900 mb-1;
+    line-height: 1.3;
+  }
+  
+  .product-details {
+    @apply flex items-center gap-3 text-sm;
+    
+    .generic-name {
+      @apply text-gray-500 italic font-medium;
+    }
+    
+    .barcode {
+      @apply text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded;
+    }
+  }
+}
+
+.product-actions {
+  @apply flex items-center gap-3;
+  
+  .prescription-badge {
+    @apply px-3 py-1 text-xs font-bold bg-brand-coral text-white rounded-full;
+    @apply shadow-sm;
+  }
+  
+  .add-icon {
+    @apply text-brand-sky text-2xl hover:text-brand-sky/80 transition-colors;
+  }
+}
+
+/* Enhanced Inventory Section */
+.inventory-section {
+  @apply p-4 bg-gray-50/50;
+}
+
+.stock-summary {
+  @apply flex items-center justify-between mb-3;
+}
+
+.stock-badge {
+  @apply flex items-center gap-2 px-3 py-2 bg-green-100 text-green-800 rounded-lg;
+  @apply font-medium text-sm;
+  
+  .stock-icon {
+    @apply text-green-600 text-base;
+  }
+  
+  .stock-text {
+    @apply font-semibold;
+  }
+}
+
+.batches-indicator {
+  @apply flex items-center gap-1 px-2 py-1 bg-brand-sky/10 text-brand-sky rounded-md;
+  @apply text-xs font-medium;
+  
+  .batches-icon {
+    @apply text-xs;
+  }
+}
+
+/* Batch Selection Styles */
+.batch-selection {
+  @apply space-y-3;
+}
+
+.batch-options-header {
+  @apply mb-2;
+  
+  .select-batch-label {
+    @apply text-sm font-semibold text-gray-700;
+  }
+}
+
+.batch-list {
+  @apply space-y-2;
+}
+
+.batch-option {
+  @apply flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg;
+  @apply cursor-pointer transition-all duration-200 hover:border-brand-sky hover:shadow-sm;
+  
+  &.selected {
+    @apply border-brand-sky bg-brand-sky/5 shadow-sm;
+  }
+}
+
+.batch-info {
+  @apply flex-1;
+}
+
+.batch-header {
+  @apply flex items-center gap-3 mb-1;
+  
+  .batch-number {
+    @apply font-semibold text-gray-900 text-sm;
+  }
+  
+  .batch-quantity {
+    @apply text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded;
+  }
+}
+
+.batch-details {
+  @apply flex items-center gap-4 text-xs;
+}
+
+.expiry-info {
+  @apply flex items-center gap-1 text-orange-600;
+  
+  .expiry-icon {
+    @apply text-xs;
+  }
+}
+
+.price-info {
+  @apply flex items-center gap-1 text-green-600 font-medium;
+  
+  .price-icon {
+    @apply text-xs;
+  }
+}
+
+.batch-selector {
+  @apply flex items-center;
+  
+  .radio-icon {
+    @apply text-brand-sky text-xl;
+  }
+}
+
+/* Single Batch Display */
+.single-batch {
+  @apply p-3 bg-white border border-gray-200 rounded-lg;
+  
+  .batch-info {
+    @apply space-y-2;
+  }
+  
+  .batch-header {
+    @apply flex items-center justify-between;
+    
+    .batch-number {
+      @apply font-semibold text-gray-900;
+    }
+    
+    .batch-quantity {
+      @apply text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded;
+    }
+  }
+  
+  .batch-details {
+    @apply flex items-center gap-4;
+  }
+}
+
+/* Scanner Section */
+.scanner-section {
+  @apply bg-gray-50 rounded-lg border border-gray-200 p-4;
+}
+
+.scanner-header {
+  @apply flex items-center gap-3 mb-3;
+}
+
+.scanner-input {
+  @apply flex gap-3;
+  
+  input {
+    @apply flex-1 px-4 py-3 text-lg border border-gray-200 rounded-lg;
+    @apply focus:border-brand-mint focus:ring-2 focus:ring-brand-mint/20;
+    @apply transition-colors duration-200;
+  }
+  
+  button {
+    @apply px-6 py-3 bg-brand-mint text-white rounded-lg;
+    @apply hover:bg-brand-mint/90 transition-colors duration-200;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+}
+
+/* Customer Section */
+.customer-section {
+  @apply bg-white rounded-lg border border-gray-200 p-6;
+}
+
+.customer-header {
+  @apply flex items-center gap-3 mb-4;
+}
+
+.credit-required-badge {
+  @apply text-xs bg-brand-coral text-white px-2 py-1 rounded-full font-medium;
+}
+
+.credit-info-message {
+  @apply flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg mb-3;
+  
+  span {
+    @apply text-sm text-blue-700;
+  }
+  
+  mat-icon {
+    @apply text-blue-600;
+  }
+}
+
+/* Customer Search and Management Styles */
+.customer-section {
+  @apply bg-white border border-gray-200 rounded-lg p-4 space-y-4;
+}
+
+.customer-header {
+  @apply flex items-center gap-2 mb-3;
+}
+
+.customer-search {
+  @apply space-y-3;
+}
+
+.search-input-group {
+  @apply relative flex items-center bg-gray-50 border border-gray-200 rounded-lg focus-within:border-brand-mint focus-within:ring-2 focus-within:ring-brand-mint/20 transition-all duration-200;
+  
+  .search-icon {
+    @apply absolute left-3 text-gray-400 pointer-events-none;
+  }
+  
+  .search-input {
+    @apply w-full pl-10 pr-20 py-3 bg-transparent border-0 focus:ring-0 focus:outline-none text-gray-900 placeholder-gray-500;
+  }
+  
+  .search-actions {
+    @apply absolute right-2 flex items-center gap-1;
+    
+    .clear-search-btn,
+    .advanced-search-btn {
+      @apply p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all duration-200;
+    }
+    
+    .advanced-search-btn.active {
+      @apply text-brand-coral bg-brand-coral/10;
+    }
+  }
+}
+
+/* Advanced Search Panel */
+.advanced-search-panel {
+  @apply bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4;
+  
+  .advanced-search-header {
+    @apply flex items-center gap-2 text-sm font-medium text-gray-700;
+  }
+  
+  .advanced-search-fields {
+    @apply grid grid-cols-2 gap-3;
+    
+    .search-field {
+      @apply space-y-1;
+      
+      label {
+        @apply block text-xs font-medium text-gray-600;
+      }
+      
+      .field-input,
+      .field-select {
+        @apply w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-brand-coral focus:ring-2 focus:ring-brand-coral/20 transition-colors;
+      }
+    }
+  }
+  
+  .advanced-search-actions {
+    @apply flex gap-2 pt-2 border-t border-gray-200;
+    
+    .search-btn {
+      @apply flex items-center gap-2 px-4 py-2 bg-brand-coral text-white rounded-lg hover:bg-brand-coral/90 transition-colors;
+      @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+    
+    .clear-btn {
+      @apply px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors;
+    }
+  }
+}
+
+/* Search Results Header */
+.search-results-header {
+  @apply flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg;
+  
+  .results-count {
+    @apply flex items-center gap-2 text-sm text-gray-600;
+  }
+  
+  .results-actions {
+    .sort-btn {
+      @apply p-1 text-gray-400 hover:text-gray-600 transition-colors;
+    }
+  }
+}
+
+.customer-search-results {
+  @apply bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto;
+}
+
+.search-loading {
+  @apply flex items-center gap-2 p-4 text-sm text-gray-600;
+}
+
+.search-prompt {
+  @apply flex items-center gap-2 p-4 text-sm text-gray-400;
+}
+
+.no-results {
+  @apply flex items-center gap-2 p-4 text-sm text-gray-500;
+  
+  .no-results-content {
+    @apply flex flex-col;
+    
+    small {
+      @apply text-xs text-gray-400 mt-1;
+    }
+  }
+}
+
+.customer-results-list {
+  @apply space-y-1;
+}
+
+.customer-result-item {
+  @apply flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-all duration-200 border-b border-gray-100 last:border-b-0;
+  @apply hover:shadow-sm;
+  
+  &.selected {
+    @apply bg-brand-mint/10 border-l-4 border-l-brand-mint;
+  }
+  
+  .customer-avatar {
+    @apply w-10 h-10 bg-brand-mint/20 rounded-full flex items-center justify-center flex-shrink-0;
+    
+    .avatar-icon {
+      @apply text-brand-mint text-lg;
+    }
+  }
+  
+  .customer-info {
+    @apply flex-1 min-w-0;
+    
+    .customer-name {
+      @apply font-medium text-gray-900 flex items-center gap-2;
+      
+      .inactive-badge {
+        @apply text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full;
+      }
+    }
+    
+    .customer-details {
+      @apply flex items-center gap-3 mt-1 text-sm text-gray-500;
+      
+      .customer-phone,
+      .customer-number {
+        @apply flex items-center gap-1;
+        
+        .detail-icon {
+          @apply text-xs;
+        }
+      }
+      
+      .customer-phone {
+        @apply text-blue-600;
+      }
+      
+      .customer-number {
+        @apply text-green-600;
+      }
+    }
+    
+    .customer-meta {
+      @apply mt-1 text-xs text-gray-400;
+    }
+  }
+  
+  .customer-actions {
+    @apply flex-shrink-0;
+    
+    .select-customer-btn {
+      @apply w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center transition-all duration-200;
+      @apply hover:border-brand-mint hover:bg-brand-mint/10;
+      
+      &.selected {
+        @apply bg-brand-mint border-brand-mint text-white;
+      }
+    }
+  }
+}
+
+.selected-customer {
+  @apply bg-brand-mint/10 border border-brand-mint/30 rounded-lg p-3 flex items-center justify-between;
+  
+  .selected-customer-info {
+    @apply flex items-center gap-3;
+    
+    .customer-icon {
+      @apply text-brand-mint;
+    }
+    
+    .customer-details {
+      .customer-name {
+        @apply font-medium text-gray-900;
+      }
+      
+      .customer-meta {
+        @apply flex items-center gap-2 mt-1 text-sm text-gray-600;
+      }
+    }
+  }
+  
+  .remove-customer-btn {
+    @apply p-1 text-gray-400 hover:text-red-500 transition-colors;
+  }
+}
+
+.create-customer-form {
+  @apply bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-3;
+  
+  .form-header {
+    @apply flex items-center gap-2 mb-3;
+  }
+  
+  .form-fields {
+    @apply space-y-3;
+    
+    .form-row {
+      @apply flex gap-2;
+    }
+  }
+  
+  .form-actions {
+    @apply flex gap-2 pt-2;
+    
+    .create-customer-btn {
+      @apply flex items-center gap-2 px-4 py-2 bg-brand-coral text-white rounded-lg hover:bg-brand-coral/90 transition-colors;
+      @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+    
+    .cancel-create-btn {
+      @apply px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors;
+    }
+  }
+}
+
+.customer-actions {
+  @apply flex justify-center;
+  
+  .create-customer-action-btn {
+    @apply flex items-center gap-2 px-4 py-2 bg-brand-mint text-white rounded-lg hover:bg-brand-mint/90 transition-colors;
+  }
+}
+
+.customer-form {
+  .form-row {
+    @apply flex gap-3;
+    
+    input {
+      @apply flex-1 px-3 py-2 border border-gray-200 rounded-lg;
+      @apply focus:border-brand-mint focus:ring-2 focus:ring-brand-mint/20;
+      @apply transition-colors duration-200;
+    }
+  }
+}
+
+/* Cart Section */
+.cart-section {
+  @apply flex-1 bg-white rounded-lg border border-gray-200 p-6;
+}
+
+.cart-header {
+  @apply flex items-center gap-3 mb-4;
+}
+
+.cart-items {
+  @apply space-y-3 max-h-96 overflow-y-auto;
+}
+
+.cart-item {
+  @apply flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100;
+  @apply hover:bg-gray-100 transition-colors duration-200;
+}
+
+.item-info {
+  @apply flex-1;
+  
+  .item-name {
+    @apply font-medium text-gray-900 mb-1;
+  }
+  
+  .item-details {
+    @apply flex items-center gap-2;
+    
+    .item-price {
+      @apply text-sm text-gray-600;
+    }
+    
+    .prescription-badge {
+      @apply px-2 py-1 text-xs font-medium bg-brand-coral text-white rounded-full;
+    }
+  }
+}
+
+.item-controls {
+  @apply flex items-center gap-3;
+  
+  .quantity-group,
+  .discount-group {
+    @apply flex flex-col gap-1;
+    
+    .control-label {
+      @apply text-xs font-medium text-gray-600;
+    }
+  }
+  
+  .quantity-input {
+    @apply w-20 text-center font-medium text-gray-900 px-3 py-2 border border-gray-300 rounded-lg;
+    @apply focus:border-brand-sky focus:ring-2 focus:ring-brand-sky/20;
+    @apply transition-colors duration-200;
+  }
+  
+  .discount-input-wrapper {
+    @apply flex flex-col gap-1;
+    
+    .discount-input {
+      @apply w-24 text-center font-medium text-gray-900 px-2 py-2 text-sm border border-gray-300 rounded-lg;
+      @apply focus:border-brand-coral focus:ring-2 focus:ring-brand-coral/20;
+      @apply transition-colors duration-200;
+      @apply bg-white;
+      
+      &:invalid {
+        @apply border-red-300 bg-red-50;
+      }
+    }
+    
+    .discount-hint {
+      @apply text-xs text-gray-500;
+    }
+  }
+  
+  .remove-btn {
+    @apply w-9 h-9 flex items-center justify-center rounded-lg bg-red-50 border border-red-200 text-red-600;
+    @apply hover:bg-red-100 transition-colors duration-200;
+    @apply mt-5; // Align with inputs
+  }
+}
+
+.item-total {
+  @apply flex flex-col items-end gap-1 min-w-24 text-right;
+  
+  .line-total-label {
+    @apply text-xs font-medium text-gray-600;
+  }
+  
+  .line-total-amount {
+    @apply font-semibold text-gray-900 text-base;
+  }
+  
+  .item-discount {
+    @apply text-xs;
+    
+    .discount-text {
+      @apply text-green-600 font-medium;
+    }
+  }
+}
+
+.empty-cart {
+  @apply flex flex-col items-center justify-center py-12 text-center;
+  
+  p {
+    @apply mt-2;
+  }
+}
+
+/* Totals Section */
+.totals-section {
+  @apply bg-white rounded-lg border border-gray-200 p-6;
+}
+
+.totals-header {
+  @apply flex items-center gap-3 mb-4;
+}
+
+.totals-breakdown {
+  @apply space-y-3;
+}
+
+.total-row {
+  @apply flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0;
+  
+  &.total-final {
+    @apply border-t-2 border-gray-200 pt-3 mt-3;
+  }
+}
+
+/* Payment Section */
+.payment-section {
+  @apply bg-white rounded-lg border border-gray-200 p-6;
+}
+
+.payment-header {
+  @apply flex items-center gap-3 mb-4;
+}
+
+.payment-form {
+  @apply space-y-4;
+}
+
+.payment-method {
+  @apply space-y-2;
+  
+  .payment-label {
+    @apply block text-sm font-medium text-gray-700;
+  }
+  
+  .payment-select {
+    @apply w-full px-3 py-2 border border-gray-200 rounded-lg;
+    @apply focus:border-brand-mint focus:ring-2 focus:ring-brand-mint/20;
+    @apply transition-colors duration-200;
+  }
+}
+
+.payment-amount {
+  @apply space-y-2;
+  
+  .payment-label {
+    @apply block text-sm font-medium text-gray-700;
+  }
+  
+  .amount-input-group {
+    @apply flex gap-2;
+    
+    .amount-input {
+      @apply flex-1 px-3 py-2 border border-gray-200 rounded-lg;
+      @apply focus:border-brand-mint focus:ring-2 focus:ring-brand-mint/20;
+      @apply transition-colors duration-200;
+    }
+    
+    .exact-amount-btn {
+      @apply px-4 py-2 bg-brand-mint text-white rounded-lg;
+      @apply hover:bg-brand-mint/90 transition-colors duration-200;
+    }
+  }
+}
+
+.change-display {
+  @apply flex justify-between items-center p-3 bg-green-50 border border-green-200 rounded-lg;
+  
+  .change-label {
+    @apply font-medium text-green-800;
+  }
+  
+  .change-amount {
+    @apply font-semibold text-green-900;
+  }
+}
+
+/* Credit Sale Checkbox Styles */
+.credit-checkbox-section {
+  @apply mb-4;
+}
+
+.credit-checkbox-label {
+  @apply flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors;
+}
+
+.credit-checkbox {
+  @apply w-4 h-4 text-brand-coral border-gray-300 rounded focus:ring-brand-coral focus:ring-2;
+}
+
+.checkbox-text {
+  @apply flex items-center gap-2 text-sm font-medium text-gray-700;
+}
+
+.checkbox-icon {
+  @apply text-brand-coral text-base;
+}
+
+/* Credit Payment Form Styles */
+.credit-payment-form {
+  @apply bg-brand-mint/5 border border-brand-mint/20 rounded-lg p-4 space-y-4;
+}
+
+.credit-form-header {
+  @apply flex items-center gap-2 mb-3;
+}
+
+.credit-form-fields {
+  @apply space-y-4;
+}
+
+.credit-field {
+  @apply space-y-2;
+  
+  .credit-label {
+    @apply block text-sm font-medium text-gray-700;
+  }
+  
+  .credit-input {
+    @apply w-full px-3 py-2 border border-gray-200 rounded-lg;
+    @apply focus:border-brand-coral focus:ring-2 focus:ring-brand-coral/20;
+    @apply transition-colors duration-200;
+  }
+  
+  .credit-textarea {
+    @apply w-full px-3 py-2 border border-gray-200 rounded-lg;
+    @apply focus:border-brand-coral focus:ring-2 focus:ring-brand-coral/20;
+    @apply transition-colors duration-200;
+    @apply resize-none;
+    min-height: 80px;
+  }
+}
+
+.credit-summary {
+  @apply bg-white border border-gray-200 rounded-lg p-3 space-y-2;
+  
+  .summary-row {
+    @apply flex justify-between items-center text-sm;
+    
+    .summary-label {
+      @apply text-gray-600;
+    }
+    
+    .summary-value {
+      @apply font-medium text-gray-900;
+    }
+  }
+}
+
+/* Notes Section */
+.notes-section {
+  @apply bg-white rounded-lg border border-gray-200 p-6;
+}
+
+.notes-header {
+  @apply flex items-center gap-3 mb-4;
+}
+
+.notes-textarea {
+  @apply w-full px-3 py-2 border border-gray-200 rounded-lg resize-none;
+  @apply focus:border-brand-coral focus:ring-2 focus:ring-brand-coral/20;
+  @apply transition-colors duration-200;
+  min-height: 80px;
+}
+
+/* Action Buttons */
+.action-buttons {
+  @apply flex flex-col gap-3;
+  @apply sticky bottom-0 bg-white pt-4 border-t border-gray-100;
+  @apply z-10; /* Ensure buttons stay on top */
+}
+
+.process-sale-btn {
+  @apply w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-brand-coral to-brand-coral/90;
+  @apply text-white font-semibold rounded-lg;
+  @apply hover:from-brand-coral/90 hover:to-brand-coral/80;
+  @apply transition-all duration-200 shadow-sm hover:shadow-md;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm;
+}
+
+.cancel-btn {
+  @apply w-full flex items-center justify-center gap-2 px-6 py-3 border border-gray-200 text-gray-700;
+  @apply rounded-lg hover:bg-gray-50 transition-colors duration-200;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.mpesa-btn {
+  @apply w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-brand-mint to-brand-mint/90;
+  @apply text-white font-semibold rounded-lg;
+  @apply hover:from-brand-mint/90 hover:to-brand-mint/80;
+  @apply transition-all duration-200 shadow-sm hover:shadow-md;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm;
+}
+
+/* Responsive Design */
+@media (min-width: 1367px) {
+  /* Large laptop/desktop screens */
+  .pos-right-panel {
+    @apply w-auto; /* Use flex-basis (1/2 width) instead of fixed width */
+  }
+}
+
+@media (max-width: 1366px) and (min-width: 1025px) {
+  /* Laptop screens */
+  .pos-right-panel {
+    @apply w-auto; /* Use flex-basis (1/2 width) instead of fixed width */
+  }
+  
+  .pos-content {
+    @apply gap-4; /* Reduce gap on laptop screens */
+  }
+  
+  .search-section,
+  .scanner-section,
+  .customer-section,
+  .cart-section,
+  .totals-section,
+  .payment-section,
+  .notes-section {
+    @apply p-4; /* Reduce padding on laptop screens */
+  }
+}
+
+@media (max-width: 1024px) {
+  .pos-content {
+    @apply flex-col;
+  }
+  
+  .pos-right-panel {
+    @apply w-full;
+  }
+}
+
+@media (max-width: 768px) {
+  .pos-container {
+    @apply h-screen overflow-hidden;
+  }
+  
+  .pos-header {
+    @apply flex-col gap-4 items-start p-4;
+  }
+  
+  .pos-content {
+    @apply flex-col p-4 gap-4 overflow-hidden;
+    height: calc(100vh - 140px); /* Adjust based on header height */
+  }
+  
+  .pos-left-panel {
+    @apply flex-1 overflow-y-auto;
+    max-height: 60vh;
+  }
+  
+  .pos-right-panel {
+    @apply w-full flex-shrink-0;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  
+  .search-input {
+    @apply flex-col;
+    
+    .clear-search-btn {
+      @apply relative top-0 right-0 transform-none mt-2;
+    }
+  }
+  
+  .scanner-input {
+    @apply flex-col;
+    
+    button {
+      @apply w-full;
+    }
+  }
+  
+  .cart-item {
+    @apply flex-col gap-3 items-start;
+  }
+  
+  .item-controls {
+    @apply w-full justify-between;
+  }
+  
+  .action-buttons {
+    @apply flex-col gap-2;
+    
+    .process-sale-btn,
+    .cancel-btn {
+      @apply w-full;
+    }
+  }
+  
+  .search-results {
+    @apply max-h-60;
+  }
+  
+  .result-item {
+    @apply flex-col items-start gap-2;
+  }
+  
+  .product-actions {
+    @apply w-full justify-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .pos-header {
+    @apply p-3;
+  }
+  
+  .pos-content {
+    @apply p-3 gap-3;
+    height: calc(100vh - 120px);
+  }
+  
+  .search-section,
+  .scanner-section,
+  .customer-section,
+  .cart-section,
+  .totals-section,
+  .payment-section,
+  .notes-section {
+    @apply p-4;
+  }
+  
+  .search-input input,
+  .scanner-input input {
+    @apply text-base py-2;
+  }
+  
+  .search-results {
+    @apply max-h-48;
+  }
+}
+
+/* Animation for loading states */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Focus states for accessibility */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  @apply outline-none ring-2 ring-brand-sky/50;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .cart-item {
+    @apply border-2 border-gray-300;
+  }
+  
+  .total-row.total-final {
+    @apply border-t-4 border-gray-400;
+  }
+}
+
+// ==================== Draft Management Styles ====================
+
+.draft-section {
+  @apply bg-white rounded-lg border border-gray-200 p-4 mb-4;
+  
+  .draft-header {
+    @apply flex items-center gap-3 mb-3;
+    
+    h3 {
+      @apply text-gray-900;
+    }
+  }
+  
+  .draft-list {
+    @apply space-y-2;
+  }
+  
+  .draft-item {
+    @apply flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors;
+    
+    &.current-draft {
+      @apply bg-blue-50 border-blue-200;
+    }
+    
+    .draft-info {
+      @apply flex-1;
+      
+      .draft-title {
+        @apply text-sm font-medium text-gray-900;
+      }
+      
+      .draft-meta {
+        @apply text-xs text-gray-500 mt-1 flex items-center gap-2;
+        
+        .auto-saved {
+          @apply text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full;
+        }
+      }
+    }
+    
+    .draft-actions {
+      @apply flex items-center gap-1;
+      
+      .draft-action-btn {
+        @apply p-1.5 rounded-md transition-colors;
+        
+        &.load-btn {
+          @apply text-blue-600 hover:bg-blue-100;
+          
+          &:disabled {
+            @apply text-gray-400 cursor-not-allowed;
+          }
+        }
+        
+        &.delete-btn {
+          @apply text-red-600 hover:bg-red-100;
+        }
+      }
+    }
+  }
+}
+
+// ==================== Credit Sale Indicator Styles ====================
+
+// Credit Sale Badge
+.credit-sale-badge {
+  @apply inline-flex items-center gap-1 px-2 py-1 rounded-full bg-brand-coral/10 text-brand-coral text-xs font-medium;
+}
+
+// Credit Payment Summary
+.credit-payment-summary {
+  @apply border-t border-gray-200 pt-2 mt-2;
+}
+
+// Credit Validation Status
+.credit-validation-status {
+  @apply bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4;
+  
+  .validation-header {
+    @apply flex items-center gap-2 mb-2;
+  }
+  
+  .validation-content {
+    @apply space-y-1;
+    
+    .validation-success {
+      @apply flex items-center gap-2 text-green-700 text-sm;
+    }
+    
+    .validation-error {
+      @apply flex items-center gap-2 text-red-700 text-sm;
+    }
+  }
+}

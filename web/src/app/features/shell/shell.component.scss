@@ -1,0 +1,15 @@
+:root {
+  --brand-coral: #f99e98;
+  --brand-sky: #a1c7f8;
+}
+
+/* Tailwind already provides most styles; keep component CSS minimal */
+:host {
+  display: contents;
+}
+
+/* Utility alias classes in case Tailwind brand utilities are not defined */
+.from-brand-coral { --tw-gradient-from: var(--brand-coral) var(--tw-gradient-from-position); --tw-gradient-to: rgb(249 158 152 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.to-brand-sky { --tw-gradient-to: var(--brand-sky) var(--tw-gradient-to-position); }
+
+

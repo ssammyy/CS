@@ -1,0 +1,133 @@
+---
+alwaysApply: true
+---
+/**
+ * Backend Data Consistency Rule:
+ *
+ * All backend service methods that mutate inventory or stock levels (such as those in GoodsReceivedNoteService or GRNService)
+ * must ensure the following:
+ * 
+ * 1. **Transactional Integrity**
+ *    - All inventory updates must be performed within a single database transaction to prevent partial updates.
+ *    - Use the `@Transactional` annotation at the service method level to guarantee atomicity.
+ * 
+ * 2. **Idempotency**
+ *    - Inventory update operations must be idempotent. Repeated calls with the same GRN or transaction reference
+ *      must not result in duplicate stock increments or decrements.
+ *    - Use unique transaction references (e.g., GRN number or a composite key) to identify and prevent duplicate processing.
+ *    - Before applying an inventory mutation, check for an existing audit log or inventory transaction record with the same reference.
+ * 
+ * 3. **Audit Logging**
+ *    - Every inventory mutation must be logged with the following details:
+ *      - Product ID
+ *      - Branch ID
+ *      - Quantity changed
+ *      - Source reference (e.g., GRN number)
+ *      - User performing the operation
+ *      - Timestamp
+ *    - Use a dedicated audit log table or service for this purpose.
+ *    - The audit log must be persisted in the same transaction as the inventory update.
+ * 
+ * 4. **Consistency with Purchase Orders**
+ *    - When a GRN is approved and inventory is updated, the corresponding purchase order status must also be updated
+ *      (e.g., to CLOSED) within the same transaction.
+ *    - All related entities must be updated atomically to prevent data inconsistencies.
+ * 
+ * 5. **Error Handling**
+ *    - If any part of the inventory update or related status change fails, the entire transaction must be rolled back.
+ *    - All exceptions must be logged with sufficient context (including GRN number, product, and branch).
+ *    - Return clear, actionable error messages to the caller.
+ * 
+ * 6. **Documentation**
+ *    - All service methods that update inventory must include a documentation block referencing this rule,
+ *      describing how transactional integrity, idempotency, and audit logging are achieved.
+ *    - The documentation must specify the mechanism for idempotency and audit logging.
+ * 
+ * Implementation Guidance:
+ * - Use Spring's `@Transactional` annotation at the service method level.
+ * - Implement an `InventoryAuditLog` entity and repository for audit logging.
+ * - Before mutating inventory, check the audit log for an existing entry with the same source reference.
+ * - If an entry exists, skip the mutation to ensure idempotency.
+ * - After a successful mutation, persist an audit log entry with all required details.
+ * - Update related purchase order status within the same transaction.
+ * - Handle and log all exceptions, and ensure the transaction is rolled back on failure.
+ * 
+ * By following these rules, the backend will maintain strong data consistency, prevent inventory discrepancies,
+ * and provide a reliable audit trail for all stock movements.
+ */
+
+
+/**
+ * UI Design Language Rule:
+ * 
+ * To ensure a single, uniform design language across the entire @/web application, adhere to the following UI guidelines:
+ * 
+ * 1. **Color Palette Usage**
+ *    - **Primary Colors:** Use only the following colors for all UI elements:
+ *      - Mint Green: `#CBEBD0` — For backgrounds of cards, buttons, and secondary UI elements.
+ *      - Light Blue: `#A1C7F8` — As the primary background, header, or highlight color.
+ *      - Soft Coral: `#F99E98` — For call-to-action buttons, hover states, error highlights, or accent details.
+ *    - Do not introduce additional colors for primary UI elements unless explicitly approved for accessibility.
+ *    - Use neutral grays for text and subtle backgrounds as needed, but always ensure sufficient contrast.
+ * 
+ * 2. **Input Fields**
+ *    - All input fields (text, select, textarea, etc.) must:
+ *      - Use consistent border radius (e.g., 6px) and padding.
+ *      - Use `#CBEBD0` for focus/active border or background states.
+ *      - Use `#A1C7F8` for labels and icons within input fields.
+ *      - Use `#F99E98` for error states and validation messages.
+ *    - Placeholder and label text should use a medium gray for readability.
+ * 
+ * 3. **Typography**
+ *    - Use a single font family across the app (e.g., `Inter, Roboto, Arial, sans-serif`).
+ *    - Font weights:
+ *      - Headings: 600–700 (semibold/bold)
+ *      - Body: 400–500 (regular/medium)
+ *    - Font sizes:
+ *      - Headings: 2xl, xl, lg, md (responsive, consistent scale)
+ *      - Body: md (16px), sm (14px), xs (12px)
+ *    - All text colors should be dark gray or near-black for maximum readability, except for accent or error text.
+ * 
+ * 4. **Buttons**
+ *    - Primary buttons: Use `#A1C7F8` as background, white text, and `#F99E98` for hover/active states.
+ *    - Secondary buttons: Use `#CBEBD0` as background, dark text, and a subtle border.
+ *    - All buttons should have consistent border radius, padding, and font styling.
+ * 
+ * 5. **Component Consistency**
+ *    - All UI components (cards, modals, lists, tables, etc.) must use the above color palette and typography rules.
+ *    - Spacing (margin, padding) should follow a consistent scale (e.g., 4px, 8px, 16px, 24px).
+ *    - Shadows and borders should be subtle and consistent across components.
+ * 
+ * 6. **Accessibility**
+ *    - Ensure all color combinations meet WCAG AA contrast requirements.
+ *    - Use sufficient color contrast for text, icons, and interactive elements.
+ *    - Provide focus states for all interactive elements using the primary palette.
+ * 
+ * 7. **Documentation**
+ *    - All new UI components must include a comment or documentation block referencing this rule and describing how the design language is applied.
+ *    - If a deviation is necessary, document the reason and obtain design approval.
+ * 
+ * By following these rules, the application will maintain a cohesive, professional, and accessible visual identity across all screens and features.
+ */
+
+
+
+/**
+ * Frontend State Caching Rule:
+ * 
+ * For any component in @/web that relies on fetching data from the API (such as user lists, roles, or settings),
+ * implement a state caching mechanism to avoid unnecessary network requests and improve performance.
+ * 
+ * - Use Angular services to manage and cache fetched data in memory (e.g., with a BehaviorSubject or similar).
+ * - Before making an API call, check if the required data is already present in the cache.
+ * - If cached data exists and is still valid (not stale), use it instead of refetching.
+ * - Provide a way to force refresh the cache (e.g., after a mutation or on explicit user action).
+ * - Document the caching logic in the service, including cache invalidation strategy and when the cache is refreshed.
+ * 
+ * Example (in a service):
+ *   - Use a private variable to store the cached data and a timestamp.
+ *   - Expose an observable for components to subscribe to.
+ *   - Invalidate or refresh the cache after create/update/delete operations.
+ * 
+ * This approach reduces API load, improves perceived speed, and ensures data consistency across components.
+ */

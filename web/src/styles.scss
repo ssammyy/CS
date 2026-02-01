@@ -1,0 +1,169 @@
+@import "tailwind-import.css";
+
+/* You can add global styles to this file, and also import other style files */
+
+/* Softer Material form-field styling aligned with brand palette */
+:root {
+  --app-primary: #a1c7f8;
+  --app-mint: #cbebd0;
+  --app-coral: #f99e98;
+}
+
+.mat-mdc-text-field-wrapper.mdc-text-field {
+  border-radius: 0.75rem !important;
+}
+*::-webkit-scrollbar {
+  width: 0px !important;
+  background-color: white !important;
+}
+
+*::-webkit-scrollbar-thumb {
+  width: 0px !important;
+  background-color: whitesmoke !important;
+  border-radius: 0px !important;
+}
+
+*::-webkit-scrollbar:horizontal {
+  width: 0px !important;
+  background-color: white !important;
+}
+
+*::-webkit-scrollbar-thumb:horizontal {
+  width: 0px !important;
+  background-color: whitesmoke !important;
+  border-radius: 0px;
+}
+
+
+
+.mdc-text-field--filled:not(.mdc-text-field--disabled) .mdc-line-ripple::after {
+  border-color: var(--app-primary) !important;
+}
+
+.mdc-text-field--filled:hover:not(.mdc-text-field--disabled) .mdc-text-field__ripple::before {
+  background-color: rgba(161, 199, 248, 0.1) !important;
+}
+
+.mat-mdc-raised-button.mat-primary { border-radius: 9999px; box-shadow: none; }
+.mat-mdc-button-base { box-shadow: none !important; }
+
+/* Error snackbar styling using brand coral with accessible contrast */
+.snackbar-error {
+  --mdc-snackbar-container-color: #1f2937; /* dark slate for container */
+  --mdc-snackbar-supporting-text-color: #ffffff;
+}
+.snackbar-error .mdc-button__label {
+  color: #f99e98 !important; /* coral action */
+}
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+/* Remove spinner arrows from all number inputs */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Prevent scroll from changing number input values globally */
+input[type=number] {
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    display: none;
+  }
+}
+
+/* Mat-select dropdown panel styling */
+.mat-mdc-select-panel {
+  background-color: white !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 0.5rem !important;
+  padding: 0.5rem 0 !important;
+}
+
+.mdc-menu-surface {
+  background-color: white !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 0.5rem !important;
+}
+
+/* Mat-select options styling */
+.mat-mdc-option {
+  background-color: white !important;
+}
+
+.mat-mdc-option:hover:not(.mdc-list-item--disabled) {
+  background-color: rgba(161, 199, 248, 0.1) !important;
+}
+
+.mat-mdc-option.mat-mdc-option-active {
+  background-color: rgba(161, 199, 248, 0.15) !important;
+}
+
+.mat-mdc-option.mdc-list-item--selected:not(.mdc-list-item--disabled) {
+  background-color: rgba(161, 199, 248, 0.2) !important;
+}
+
+/* Ensure mat-select panel overlays above dialog action buttons */
+.select-on-top .mdc-menu-surface {
+  z-index: 1050 !important;
+}
+
+/* Fix for mat-select panel in dialogs */
+.cdk-overlay-pane {
+  z-index: 1000 !important;
+}
+
+.cdk-overlay-backdrop {
+  background-color: transparent !important;
+}
+
+/* Mat-datepicker panel styling */
+.mat-datepicker-content {
+  background-color: white !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 0.75rem !important;
+}
+
+.mat-calendar {
+  background-color: white !important;
+}
+
+.mat-calendar-header {
+  background-color: rgba(161, 199, 248, 0.1) !important;
+}
+
+.mat-calendar-body-selected {
+  background-color: var(--app-primary) !important;
+  color: white !important;
+}
+
+.mat-calendar-body-cell:hover .mat-calendar-body-cell-content:not(.mat-calendar-body-selected) {
+  background-color: rgba(161, 199, 248, 0.1) !important;
+}
+
+/* Mat-autocomplete panel styling */
+.mat-mdc-autocomplete-panel {
+  background-color: white !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 0.5rem !important;
+}
+
+/* Ensure all Material overlay panels have proper backgrounds */
+.mat-mdc-menu-panel {
+  background-color: white !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 0.5rem !important;
+}
+
+.mat-mdc-dialog-surface {
+  background-color: white !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  border-radius: 1rem !important;
+}

@@ -1,0 +1,24 @@
+@use '@angular/material' as mat;
+
+// Angular Material v19 (M3) theme using built-in palettes that approximate the
+// requested brand colors. We’ll also use Tailwind brand utilities in templates
+// for exact hex accents where needed.
+
+$app-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$blue-palette,   // ~ #a1c7f8
+    tertiary: mat.$green-palette, // ~ #cbebd0 (we'll use Tailwind for #f99e98 accents)
+    use-system-variables: true,
+  ),
+  density: (
+    scale: 0
+  ),
+));
+
+// Wrap M3 theme mixins in a selector as required by Angular Material v19.
+:root {
+  @include mat.all-component-themes($app-theme);
+}
+
+

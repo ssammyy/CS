@@ -1,0 +1,57 @@
+<div class="p-6 space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-semibold">Users</h1>
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-gray-500" *ngIf="!loading">{{ users.length }} total</span>
+      <button class="rounded-xl border border-brand-sky px-3 py-2 text-sm hover:bg-brand-sky/10 inline-flex items-center gap-2" (click)="openCreateDialog()">
+        <mat-icon fontIcon="person_add" class="text-brand-sky"></mat-icon>
+        New user
+      </button>
+    </div>
+  </div>
+
+
+  <div *ngIf="loading" class="text-gray-500 text-sm">Loading users…</div>
+  <div *ngIf="error" class="text-sm text-brand-coral">{{ error }}</div>
+
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" *ngIf="!loading && !error">
+    <div *ngFor="let u of users" class="rounded-xl border border-gray-200 bg-white p-4">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-full bg-brand-sky/40 flex items-center justify-center">
+          <mat-icon fontIcon="person" class="text-gray-700"></mat-icon>
+        </div>
+        <div>
+          <div class="font-medium">{{ u.username }}</div>
+          <div class="text-xs text-gray-500">{{ u.email }}</div>
+        </div>
+        <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full" [ngClass]="u.role === 'ADMIN' ? 'bg-brand-coral/40 text-gray-800' : 'bg-brand-mint/60 text-gray-700'">{{ u.role }}</span>
+      </div>
+      <div class="mt-3 space-y-2">
+        <!-- Branch Information -->
+        <div *ngIf="u.branches && u.branches.length > 0" class="text-xs text-gray-600">
+          <div class="flex items-center gap-1 mb-1">
+            <mat-icon fontIcon="store" class="text-xs opacity-60"></mat-icon>
+            <span class="font-medium">Assigned Branches:</span>
+          </div>
+          <div class="flex flex-wrap gap-1">
+            <span 
+              *ngFor="let branch of u.branches" 
+              class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs"
+              [ngClass]="branch === u.primaryBranch ? 'bg-brand-sky/20 text-brand-sky border border-brand-sky/30' : 'bg-gray-100 text-gray-600'">
+              {{ branch }}
+              <mat-icon *ngIf="branch === u.primaryBranch" fontIcon="star" class="text-xs"></mat-icon>
+            </span>
+          </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex gap-2">
+          <button class="text-xs rounded-lg border border-gray-200 px-2.5 py-1 hover:bg-gray-50" (click)="editUser(u)" [disabled]="isSelf(u)">Edit</button>
+          <button class="text-xs rounded-lg border border-brand-coral text-brand-coral px-2.5 py-1 hover:bg-brand-coral/10" (click)="deleteUser(u)" [disabled]="isSelf(u)">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+

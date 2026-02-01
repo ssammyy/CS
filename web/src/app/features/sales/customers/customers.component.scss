@@ -1,0 +1,238 @@
+/* Customers Component Styles following UI Design Language Rule */
+/* Uses approved color palette: Mint Green (#CBEBD0), Light Blue (#A1C7F8), Soft Coral (#F99E98) */
+
+.customers-container {
+  @apply h-full flex flex-col bg-gray-50;
+}
+
+.customers-header {
+  @apply flex items-center justify-between p-6 bg-white border-b border-gray-200;
+}
+
+.search-section {
+  @apply bg-white border-b border-gray-200 p-6;
+}
+
+.search-input {
+  @apply relative;
+  
+  .search-icon {
+    @apply absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400;
+  }
+  
+  .search-field {
+    @apply w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg;
+    @apply focus:border-brand-sky focus:ring-2 focus:ring-brand-sky/20;
+    @apply transition-colors duration-200;
+  }
+}
+
+.customer-form-container {
+  @apply bg-white border-b border-gray-200 p-6;
+}
+
+.customer-form-header {
+  @apply flex items-center justify-between mb-6;
+  
+  .close-btn {
+    @apply w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200;
+    @apply hover:bg-gray-50 transition-colors duration-200;
+  }
+}
+
+.customer-form {
+  @apply space-y-6;
+}
+
+.form-row {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.form-group {
+  @apply flex flex-col gap-2;
+  
+  .form-label {
+    @apply text-sm font-medium text-gray-700;
+  }
+  
+  .form-input {
+    @apply px-3 py-2 border border-gray-200 rounded-lg;
+    @apply focus:border-brand-mint focus:ring-2 focus:ring-brand-mint/20;
+    @apply transition-colors duration-200;
+  }
+}
+
+.form-actions {
+  @apply flex items-center gap-3 pt-4 border-t border-gray-200;
+}
+
+.save-btn {
+  @apply inline-flex items-center gap-2 px-4 py-2 bg-brand-coral text-white rounded-lg;
+  @apply hover:bg-brand-coral/90 transition-colors duration-200;
+}
+
+.cancel-btn {
+  @apply inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700;
+  @apply rounded-lg hover:bg-gray-50 transition-colors duration-200;
+}
+
+.customers-table-container {
+  @apply flex-1 bg-white m-6 rounded-lg border border-gray-200 overflow-hidden;
+}
+
+.loading-state {
+  @apply flex flex-col items-center justify-center py-12;
+  
+  p {
+    @apply mt-4 text-gray-600;
+  }
+}
+
+.empty-state {
+  @apply flex flex-col items-center justify-center py-12 text-center;
+  
+  h3 {
+    @apply mt-4;
+  }
+  
+  p {
+    @apply mt-2;
+  }
+}
+
+.table-wrapper {
+  @apply overflow-x-auto;
+}
+
+.customers-table {
+  @apply w-full;
+  
+  .mat-mdc-header-cell {
+    @apply bg-gray-50 text-gray-700 font-semibold border-b border-gray-200;
+  }
+  
+  .mat-mdc-cell {
+    @apply border-b border-gray-100;
+  }
+  
+  .table-row {
+    @apply hover:bg-gray-50 transition-colors duration-200;
+  }
+}
+
+.customer-number {
+  @apply font-medium text-brand-sky;
+}
+
+.customer-name {
+  @apply font-medium text-gray-900;
+}
+
+.customer-phone {
+  @apply text-sm text-gray-600;
+}
+
+.customer-email {
+  @apply text-sm text-gray-600;
+}
+
+.insurance-provider {
+  @apply text-sm text-gray-600;
+}
+
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.created-date {
+  @apply text-sm text-gray-600;
+}
+
+.action-buttons {
+  @apply flex items-center gap-2;
+}
+
+.action-btn {
+  @apply w-8 h-8 flex items-center justify-center rounded-lg border transition-colors duration-200;
+  
+  &.edit-btn {
+    @apply border-brand-mint text-brand-mint hover:bg-brand-mint/10;
+  }
+  
+  &.credit-btn {
+    @apply border-brand-coral text-brand-coral hover:bg-brand-coral/10;
+  }
+  
+  &.view-btn {
+    @apply border-brand-sky text-brand-sky hover:bg-brand-sky/10;
+  }
+}
+
+.pagination-container {
+  @apply bg-white border-t border-gray-200 px-6 py-4;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .customers-header {
+    @apply flex-col gap-4 items-start;
+  }
+  
+  .customer-form-container {
+    @apply p-4;
+  }
+  
+  .form-row {
+    @apply grid-cols-1;
+  }
+  
+  .customers-table-container {
+    @apply m-4;
+  }
+  
+  .action-buttons {
+    @apply flex-col gap-1;
+  }
+  
+  .action-btn {
+    @apply w-6 h-6;
+  }
+}
+
+/* Animation for loading states */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Focus states for accessibility */
+button:focus,
+input:focus {
+  @apply outline-none ring-2 ring-brand-sky/50;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .customers-table {
+    .mat-mdc-header-cell {
+      @apply border-b-2 border-gray-400;
+    }
+    
+    .mat-mdc-cell {
+      @apply border-b border-gray-300;
+    }
+  }
+  
+  .status-badge {
+    @apply border border-current;
+  }
+}
+

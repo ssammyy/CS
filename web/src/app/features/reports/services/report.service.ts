@@ -1,0 +1,135 @@
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { environment } from '../../../../environments/environment';
+
+/**
+ * Report DTOs matching backend
+ */
+export interface DailyRevenueDto {
+  date: string;
+  revenue: number;
+  salesCount: number;
+}
+
+export interface PaymentMethodRevenueDto {
+  paymentMethod: string;
+  amount: number;
+  percentage: number;
+}
+
+export interface FinancialReportDto {
+  startDate: string;
+  endDate: string;
+  totalRevenue: number;
+  totalCost: number;
+  grossProfit: number;
+  grossProfitMargin: number;
+  totalSales: number;
+  totalCreditSales: number;
+  totalCashSales: number;
+  creditPaymentsReceived: number;
+  revenueByPaymentMethod: PaymentMethodRevenueDto[];
+  dailyRevenue: DailyRevenueDto[];
+}
+
+export interface LowStockItemDto {
+  productId: string;
+  productName: string;
+  currentStock: number;
+  minStockLevel: number;
+  stockValue: number;
+}
+
+export interface ExpiringItemDto {
+  productId: string;
+  productName: string;
+  quantity: number;
+  expiryDate: string;
+  daysUntilExpiry: number;
+  stockValue: number;
+}
+
+export interface OutOfStockItemDto {
+  productId: string;
+  productName: string;
+  lastRestockDate: string | null;
+}
+
+export interface InventoryReportDto {
+  totalItems: number;
+  totalQuantity: number;
+  totalStockValue: number;
+  totalCostValue: number;
+  lowStockItems: LowStockItemDto[];
+  expiringItems: ExpiringItemDto[];
+  outOfStockItems: OutOfStockItemDto[];
+}
+
+export interface VarianceItemDto {
+  productId: string;
+  productName: string;
+  expectedQuantity: number;
+  actualQuantity: number;
+  varianceQuantity: number;
+  varianceValue: number;
+  variancePercentage: number;
+}
+
+export interface VarianceReportDto {
+  startDate: string;
+  endDate: string;
+  totalExpectedUsage: number;
+  totalActualQuantity: number;
+  totalVarianceQuantity: number;
+  totalInventoryVariance: number;
+  significantVariances: VarianceItemDto[];
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class ReportService {
+  constructor(private http: HttpClient) {}
+
+  /**
+   * Get financial report for a date range
+   */
+  getFinancialReport(
+    startDate: string,
+    endDate: string,
+    branchId?: string
+  ): Observable<FinancialReportDto> {
+    let url = `${environment.apiBaseUrl}/api/reports/financial?startDate=${startDate}&endDate=${endDate}`;
+    if (branchId) {
+      url += `&branchId=${branchId}`;
+    }
+    return this.http.get<FinancialReportDto>(url);
+  }
+
+  /**
+   * Get inventory report
+   */
+  getInventoryReport(branchId?: string): Observable<InventoryReportDto> {
+    let url = `${environment.apiBaseUrl}/api/reports/inventory`;
+    if (branchId) {
+      url += `?branchId=${branchId}`;
+    }
+    return this.http.get<InventoryReportDto>(url);
+  }
+
+  /**
+   * Get variance report
+   */
+  getVarianceReport(
+    startDate: string,
+    endDate: string,
+    branchId?: string
+  ): Observable<VarianceReportDto> {
+    let url = `${environment.apiBaseUrl}/api/reports/variance?startDate=${startDate}&endDate=${endDate}`;
+    if (branchId) {
+      url += `&branchId=${branchId}`;
+    }
+    return this.http.get<VarianceReportDto>(url);
+  }
+}

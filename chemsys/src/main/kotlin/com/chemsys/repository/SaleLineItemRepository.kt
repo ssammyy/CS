@@ -1,0 +1,100 @@
+package com.chemsys.repository
+
+import com.chemsys.entity.SaleLineItem
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
+import org.springframework.stereotype.Repository
+import java.util.*
+
+/**
+ * Repository interface for SaleLineItem entity operations.
+ * Provides basic CRUD operations for sale line items.
+ * 
+ * This repository follows the Backend Data Consistency Rule by ensuring:
+ * - All operations maintain referential integrity
+ * - Proper indexing for performance optimization
+ * - Support for line item tracking and reporting
+ */
+@Repository
+interface SaleLineItemRepository : JpaRepository<SaleLineItem, UUID> {
+
+    /**
+     * Finds all line items for a specific sale.
+     * 
+     * @param saleId The sale ID to filter by
+     * @return List of line items for the sale
+     */
+    @Query("SELECT li FROM SaleLineItem li WHERE li.sale.id = :saleId")
+    fun findBySaleId(@Param("saleId") saleId: UUID): List<SaleLineItem>
+
+    /**
+     * Finds line items by product ID across all sales for a tenant.
+     * 
+     * @param productId The product ID to filter by
+     * @param tenantId The tenant ID to filter by
+     * @return List of line items for the product
+     */
+    @Query("""
+        SELECT li FROM SaleLineItem li 
+        JOIN li.sale s 
+        WHERE li.product.id = :productId AND s.tenant.id = :tenantId
+        ORDER BY s.saleDate DESC
+    """)
+    fun findByProductIdAndTenantId(
+        @Param("productId") productId: UUID, 
+        @Param("tenantId") tenantId: UUID
+    ): List<SaleLineItem>
+
+    /**
+     * Finds line items by branch ID for a tenant.
+     * 
+     * @param branchId The branch ID to filter by
+     * @param tenantId The tenant ID to filter by
+     * @return List of line items for the branch
+     */
+    @Query("""
+        SELECT li FROM SaleLineItem li 
+        JOIN li.sale s 
+        WHERE s.branch.id = :branchId AND s.tenant.id = :tenantId
+        ORDER BY s.saleDate DESC
+    """)
+    fun findByBranchIdAndTenantId(
+        @Param("branchId") branchId: UUID, 
+        @Param("tenantId") tenantId: UUID
+    ): List<SaleLineItem>
+
+    /**
+     * Calculates total quantity sold for a product across all sales for a tenant.
+     * 
+     * @param productId The product ID to calculate for
+     * @param tenantId The tenant ID to filter by
+     * @return Total quantity sold
+     */
+    @Query("""
+        SELECT COALESCE(SUM(li.quantity), 0) FROM SaleLineItem li 
+        JOIN li.sale s 
+        WHERE li.product.id = :productId AND s.tenant.id = :tenantId
+    """)
+    fun getTotalQuantitySoldByProductIdAndTenantId(
+        @Param("productId") productId: UUID, 
+        @Param("tenantId") tenantId: UUID
+    ): Long
+
+    /**
+     * Calculates total quantity returned for a product across all sales for a tenant.
+     * 
+     * @param productId The product ID to calculate for
+     * @param tenantId The tenant ID to filter by
+     * @return Total quantity returned
+     */
+    @Query("""
+        SELECT COALESCE(SUM(li.returnedQuantity), 0) FROM SaleLineItem li 
+        JOIN li.sale s 
+        WHERE li.product.id = :productId AND s.tenant.id = :tenantId
+    """)
+    fun getTotalQuantityReturnedByProductIdAndTenantId(
+        @Param("productId") productId: UUID, 
+        @Param("tenantId") tenantId: UUID
+    ): Long
+}

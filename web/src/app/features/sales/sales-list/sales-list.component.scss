@@ -1,0 +1,287 @@
+/* Sales List Component Styles following UI Design Language Rule */
+/* Uses approved color palette: Mint Green (#CBEBD0), Light Blue (#A1C7F8), Soft Coral (#F99E98) */
+
+.sales-list-container {
+  @apply h-full flex flex-col bg-gray-50;
+}
+
+.sales-header {
+  @apply flex items-center justify-between p-6 bg-white border-b border-gray-200;
+}
+
+.search-filters {
+  @apply bg-white border-b border-gray-200 p-6 space-y-4;
+}
+
+.search-section {
+  @apply w-full;
+}
+
+.search-input {
+  @apply relative;
+  
+  .search-icon {
+    @apply absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400;
+  }
+  
+  .search-field {
+    @apply w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg;
+    @apply focus:border-brand-sky focus:ring-2 focus:ring-brand-sky/20;
+    @apply transition-colors duration-200;
+  }
+}
+
+.filters-section {
+  @apply flex flex-wrap items-end gap-4;
+}
+
+.filter-group {
+  @apply flex flex-col gap-2 min-w-48;
+  
+  .filter-label {
+    @apply text-sm font-medium text-gray-700;
+  }
+  
+  .filter-select,
+  .filter-input {
+    @apply px-3 py-2 border border-gray-200 rounded-lg;
+    @apply focus:border-brand-mint focus:ring-2 focus:ring-brand-mint/20;
+    @apply transition-colors duration-200;
+  }
+}
+
+.clear-filters-btn {
+  @apply inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700;
+  @apply rounded-lg hover:bg-gray-50 transition-colors duration-200;
+}
+
+.sales-table-container {
+  @apply flex-1 bg-white m-6 rounded-lg border border-gray-200 overflow-hidden;
+  height: calc(100vh - 200px); /* Adjust based on header and filter heights */
+  min-height: 400px;
+}
+
+.loading-state {
+  @apply flex flex-col items-center justify-center py-12;
+  
+  p {
+    @apply mt-4 text-gray-600;
+  }
+}
+
+.empty-state {
+  @apply flex flex-col items-center justify-center py-12 text-center;
+  
+  h3 {
+    @apply mt-4;
+  }
+  
+  p {
+    @apply mt-2;
+  }
+}
+
+.table-wrapper {
+  @apply overflow-auto;
+  height: 100%;
+  max-height: calc(100vh - 300px); /* Adjust based on header, filters, and pagination */
+}
+
+.sales-table {
+  @apply w-full;
+  
+  .mat-mdc-header-cell {
+    @apply bg-gray-50 text-gray-700 font-semibold border-b border-gray-200;
+  }
+  
+  .mat-mdc-cell {
+    @apply border-b border-gray-100;
+  }
+  
+  .table-row {
+    @apply hover:bg-gray-50 transition-colors duration-200;
+  }
+}
+
+.sale-number {
+  @apply font-medium text-brand-sky;
+}
+
+.customer-info {
+  @apply flex flex-col;
+  
+  .customer-name {
+    @apply font-medium text-gray-900;
+  }
+  
+  .customer-phone {
+    @apply text-sm text-gray-500;
+  }
+}
+
+.total-amount {
+  @apply font-semibold text-gray-900;
+}
+
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-container {
+  @apply flex flex-col gap-1;
+}
+
+.returned-badge {
+  @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium;
+  
+  .returned-icon {
+    @apply text-xs;
+  }
+  
+  &.full-return {
+    @apply bg-red-100 text-red-800;
+    
+    .returned-icon {
+      @apply text-red-600;
+    }
+  }
+  
+  &.partial-return {
+    @apply bg-orange-100 text-orange-800;
+    
+    .returned-icon {
+      @apply text-orange-600;
+    }
+  }
+}
+
+.payment-method {
+  @apply flex items-center gap-2;
+  
+  .payment-icon {
+    @apply text-gray-400 text-base;
+  }
+}
+
+.sale-date {
+  @apply text-sm text-gray-600;
+}
+
+.cashier-name {
+  @apply text-sm text-gray-700;
+}
+
+.action-buttons {
+  @apply flex items-center gap-2;
+}
+
+.action-btn {
+  @apply w-8 h-8 flex items-center justify-center rounded-lg border transition-colors duration-200;
+  
+  &.view-btn {
+    @apply border-brand-sky text-brand-sky hover:bg-brand-sky/10;
+  }
+  
+  &.print-btn {
+    @apply border-brand-mint text-brand-mint hover:bg-brand-mint/10;
+  }
+  
+  &.return-btn {
+    @apply border-brand-coral text-brand-coral hover:bg-brand-coral/10;
+  }
+}
+
+.pagination-container {
+  @apply bg-white border-t border-gray-200 px-6 py-4;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .filters-section {
+    @apply flex-col items-stretch;
+  }
+  
+  .filter-group {
+    @apply min-w-full;
+  }
+}
+
+@media (max-width: 768px) {
+  .sales-header {
+    @apply flex-col gap-4 items-start;
+  }
+  
+  .search-filters {
+    @apply p-4;
+  }
+  
+  .sales-table-container {
+    @apply m-4;
+    height: calc(100vh - 150px);
+    min-height: 300px;
+  }
+  
+  .table-wrapper {
+    max-height: calc(100vh - 200px);
+  }
+  
+  .action-buttons {
+    @apply flex-col gap-1;
+  }
+  
+  .action-btn {
+    @apply w-6 h-6;
+  }
+}
+
+/* Animation for loading states */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Focus states for accessibility */
+button:focus,
+input:focus,
+select:focus {
+  @apply outline-none ring-2 ring-brand-sky/50;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .sales-table {
+    .mat-mdc-header-cell {
+      @apply border-b-2 border-gray-400;
+    }
+    
+    .mat-mdc-cell {
+      @apply border-b border-gray-300;
+    }
+  }
+  
+  .status-badge {
+    @apply border border-current;
+  }
+}
+
+/* Mobile specific adjustments */
+@media (max-width: 480px) {
+  .sales-table-container {
+    @apply m-2;
+    height: calc(100vh - 120px);
+    min-height: 250px;
+  }
+  
+  .table-wrapper {
+    max-height: calc(100vh - 150px);
+  }
+}
+

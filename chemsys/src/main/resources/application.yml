@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: chemsys-backend
+  
+  profiles:
+    active: dev
+  
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5454/chemsys}
+    username: ${DB_USERNAME:bonnie}
+    password: ${DB_PASSWORD:Targeted9@21}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  
+  flyway:
+    enabled: true
+
+  security:
+    jwt:
+      secret: d5f3c5f1e7a9b2c4d6e8f0a1b3c5d7e9f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6
+      expiration: 86400000 # 24 hours in milliseconds
+
+# M-Pesa Configuration
+mpesa:
+  consumer-key: ${MPESA_CONSUMER_KEY:test_consumer_key}
+  consumer-secret: ${MPESA_CONSUMER_SECRET:test_consumer_secret}
+  passkey: ${MPESA_PASSKEY:bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919}
+
+# Application Configuration
+app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    com.chemsys: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
