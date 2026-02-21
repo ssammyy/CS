@@ -32,7 +32,8 @@ open class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { authz ->
                 authz
-                    .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers("/auth/login", "/auth/signup").permitAll()
+                    .requestMatchers("/auth/change-password", "/auth/me").authenticated()
                     .requestMatchers("/actuator/**").permitAll()
                     // Allow authenticated users to access branch information (needed for branch context)
                     .requestMatchers("/api/branches/**").authenticated()
@@ -55,7 +56,13 @@ open class SecurityConfig(
     open fun corsConfigurationSource(): CorsConfigurationSource {
         val config = CorsConfiguration()
         val allowedOrigins = System.getenv("CORS_ALLOWED_ORIGINS")?.split(',')?.map { it.trim() }
-        config.allowedOrigins = allowedOrigins ?: listOf("http://localhost:4200", "http://127.0.0.1:4200", "http://192.168.100.36:4200")
+        config.allowedOrigins = allowedOrigins ?: listOf(
+            "http://localhost:4200", 
+            "http://127.0.0.1:4200", 
+            "http://192.168.100.36:4200",
+            "https://saamsoft.tech",
+            "https://www.saamsoft.tech"
+        )
         config.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         // Allow all headers to make preflight resilient (includes X-Tenant-ID, X-Branch-ID)
         config.allowedHeaders = listOf("*")

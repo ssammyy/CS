@@ -1,6 +1,7 @@
 package com.chemsys.service
 
 import com.chemsys.config.TenantContext
+import com.chemsys.dto.AdminResetPasswordRequest
 import com.chemsys.dto.CreateUserRequest
 import com.chemsys.dto.UserManagementDto
 import com.chemsys.dto.UpdateUserRequest
@@ -17,6 +18,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.util.*
 import org.springframework.security.core.context.SecurityContextHolder
 
@@ -57,8 +59,10 @@ class UserService(
             username = request.username,
             passwordHash = passwordEncoder.encode(request.password),
             email = request.email,
+            phone = request.phone,
             tenant = tenant,
-            role = resolvedRole
+            role = resolvedRole,
+            mustChangePassword = true
         )
         
         val savedUser = userRepository.save(user)
@@ -74,7 +78,8 @@ class UserService(
         return userMapper.toManagementDto(savedUser, emptyList(), null)
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','USER')")
+    /** List users; allowed for ADMIN, PLATFORM_ADMIN, USER, and MANAGER (e.g. branch managers viewing staff). */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','USER','MANAGER')")
     fun getAllUsers(pageable: Pageable): UserListResponse {
         val currentTenantId = TenantContext.getCurrentTenant()
             ?: throw RuntimeException("No tenant context found")
@@ -94,7 +99,8 @@ class UserService(
         )
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','USER')")
+    /** Get single user by id; allowed for ADMIN, PLATFORM_ADMIN, USER, and MANAGER. */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','USER','MANAGER')")
     fun getUserById(id: UUID): UserManagementDto {
         val currentTenantId = TenantContext.getCurrentTenant()
             ?: throw RuntimeException("No tenant context found")
@@ -125,6 +131,7 @@ class UserService(
 
         val updated = user.copy(
             email = request.email ?: user.email,
+            phone = request.phone ?: user.phone,
             role = request.role ?: user.role,
             isActive = request.isActive ?: user.isActive
         )
@@ -133,6 +140,21 @@ class UserService(
         val branchNames = userBranches.map { it.branch.name }
         val primaryBranch = userBranches.find { it.isPrimary }?.branch?.name
         return userMapper.toManagementDto(saved, branchNames, primaryBranch)
+    }
+
+    /**
+     * Resets another user's password (admin only). Use when a user forgets their password.
+     * Sets mustChangePassword = true so the user must set a new password on next login.
+     * Requires a read-write transaction because UserRepository.updatePassword is a @Modifying UPDATE.
+     */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN')")
+    @Transactional
+    fun resetUserPassword(id: UUID, request: AdminResetPasswordRequest) {
+        val currentTenantId = TenantContext.getCurrentTenant() ?: throw RuntimeException("No tenant context found")
+        val user = userRepository.findById(id).orElseThrow { RuntimeException("User not found with id: $id") }
+        if (user.tenant.id != currentTenantId) throw RuntimeException("Access denied: User belongs to different tenant")
+        val hash = passwordEncoder.encode(request.newPassword)
+        userRepository.updatePassword(id, hash, mustChange = true)
     }
 
     @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN')")
@@ -147,7 +169,8 @@ class UserService(
         userRepository.delete(user)
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN')")
+    /** List available roles for user management UI; allowed for ADMIN, PLATFORM_ADMIN, and MANAGER. */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','MANAGER')")
     fun listAvailableRoles(): RoleListResponse {
         // Fetch from db
         val roles = roleRepository.findAll().map { role ->
@@ -159,7 +182,7 @@ class UserService(
         )
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','USER')")
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','USER','MANAGER')")
     fun updateCurrentUser(request: UpdateUserRequest): UserManagementDto {
         val currentTenantId = TenantContext.getCurrentTenant() ?: throw RuntimeException("No tenant context found")
         val currentUsername = SecurityContextHolder.getContext()?.authentication?.name
@@ -167,9 +190,10 @@ class UserService(
         val user = userRepository.findByUsername(currentUsername) ?: throw RuntimeException("Current user not found")
         if (user.tenant.id != currentTenantId) throw RuntimeException("Access denied")
 
-        // Only allow email update via profile for now
+        // Only allow email and phone update via profile for now
         val updated = user.copy(
-            email = request.email ?: user.email
+            email = request.email ?: user.email,
+            phone = request.phone ?: user.phone
         )
         val saved = userRepository.save(updated)
         val userBranches = userBranchRepository.findByUserIdAndTenantId(saved.id!!, currentTenantId)

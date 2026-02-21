@@ -59,8 +59,8 @@ export class UsersService {
     });
   }
 
-  /** Updates a user's role/email/active flag and patches the cached entry. */
-  updateUser(id: string, patch: Partial<Pick<UserManagementDto, 'role' | 'email' | 'isActive'>>): Observable<UserManagementDto> {
+  /** Updates a user's role/email/phone/active flag and patches the cached entry. */
+  updateUser(id: string, patch: Partial<Pick<UserManagementDto, 'role' | 'email' | 'phone' | 'isActive'>>): Observable<UserManagementDto> {
     return new Observable((observer) => {
       this.http
         .patch<UserManagementDto>(`${environment.apiBaseUrl}/users/${id}`, patch)
@@ -70,6 +70,24 @@ export class UsersService {
             this.usersSubject.next(list);
             this.lastLoadedAt = Date.now();
             observer.next(updated);
+            observer.complete();
+          },
+          error: (err) => observer.error(err),
+        });
+    });
+  }
+
+  /**
+   * Admin-only: sets a new password for another user (e.g. when they forget their password).
+   * The user will be required to change password on next login.
+   */
+  resetUserPassword(userId: string, newPassword: string): Observable<void> {
+    return new Observable((observer) => {
+      this.http
+        .post<void>(`${environment.apiBaseUrl}/users/${userId}/reset-password`, { newPassword })
+        .subscribe({
+          next: () => {
+            observer.next();
             observer.complete();
           },
           error: (err) => observer.error(err),
@@ -99,6 +117,7 @@ export interface UserManagementDto {
   id: string;
   username: string;
   email: string;
+  phone?: string;
   role: string;
   tenantId: string;
   tenantName: string;
@@ -113,6 +132,7 @@ export interface CreateUserPayload {
   username: string;
   email: string;
   password: string;
+  phone?: string;
   role: 'USER' | 'ADMIN';
 }
 

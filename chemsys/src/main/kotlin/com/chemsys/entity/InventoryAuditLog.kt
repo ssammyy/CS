@@ -94,6 +94,7 @@ enum class SourceType {
     INVENTORY_ADJUSTMENT,   // Manual inventory adjustment
     INVENTORY_TRANSFER,     // Branch-to-branch transfer
     RETURN,                 // Customer return
+    SALE_EDIT,              // Inventory restored after approved sale line delete (maker-checker)
     EXPIRY_WRITE_OFF,       // Expired product write-off
     DAMAGE_WRITE_OFF,       // Damaged product write-off
     INITIAL_STOCK,          // Initial stock setup

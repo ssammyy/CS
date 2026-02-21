@@ -86,6 +86,20 @@
             <artifactId>jackson-module-kotlin</artifactId>
         </dependency>
 
+        <!-- HTTP Client for AI API calls -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+        
+        <!-- Netty DNS resolver for macOS (fixes DNS resolution warning) - optional -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-resolver-dns-native-macos</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
         <!-- DTO Mapping: MapStruct removed; using manual mappers to avoid kapt on newer JDKs -->
 
         <!-- Kotlin -->

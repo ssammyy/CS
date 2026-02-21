@@ -4,6 +4,7 @@ import com.chemsys.dto.*
 import com.chemsys.entity.*
 import com.chemsys.mapper.SalesMapper
 import com.chemsys.repository.*
+import com.chemsys.repository.UserBranchRepository
 import com.chemsys.config.TenantContext
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.*
@@ -12,7 +13,11 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.security.core.context.SecurityContextHolder
 import java.math.BigDecimal
+import java.math.RoundingMode
+import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.*
 
 /**
@@ -40,12 +45,29 @@ class SalesService(
     private val branchRepository: com.chemsys.repository.BranchRepository,
     private val tenantRepository: com.chemsys.repository.TenantRepository,
     private val userRepository: com.chemsys.repository.UserRepository,
+    private val userBranchRepository: com.chemsys.repository.UserBranchRepository,
     private val salesMapper: SalesMapper,
     private val taxCalculationService: TaxCalculationService
 ) {
 
     companion object {
         private val logger = LoggerFactory.getLogger(SalesService::class.java)
+        /** Commission rate for cashiers: 15% of profit (selling price minus cost) per item sold. */
+        private val CASHIER_COMMISSION_RATE = BigDecimal("0.15")
+    }
+
+    /**
+     * Computes cashier commission for a single sale: 15% of profit per line item.
+     * Profit per line = (unitPrice - cost) * (quantity - returnedQuantity); commission = 15% of sum.
+     * Requires sale.lineItems and each lineItem.inventory to be loaded (for unitCost).
+     */
+    private fun computeCommissionForSale(sale: Sale): BigDecimal {
+        return sale.lineItems.sumOf { li ->
+            val costPerUnit = li.inventory.product.unitCost ?: li.inventory.unitCost ?: BigDecimal.ZERO
+            val profitPerUnit = (li.unitPrice - costPerUnit).max(BigDecimal.ZERO)
+            val quantitySold = (li.quantity - li.returnedQuantity).coerceAtLeast(0).toBigDecimal()
+            profitPerUnit.multiply(quantitySold).multiply(CASHIER_COMMISSION_RATE)
+        }.setScale(2, RoundingMode.HALF_UP)
     }
 
     // ==================== Sale Operations ====================
@@ -88,7 +110,7 @@ class SalesService(
 
         // Calculate totals and taxes
         val subtotal = lineItems.sumOf { (_, inventory) ->
-            inventory.sellingPrice?.multiply(BigDecimal(
+            (inventory.product.sellingPrice ?: inventory.sellingPrice)?.multiply(BigDecimal(
                 request.lineItems.find { it.productId == inventory.product.id }?.quantity ?: 0
             )) ?: BigDecimal.ZERO
         }
@@ -306,6 +328,52 @@ class SalesService(
         val tenantId = TenantContext.getCurrentTenant()
             ?: throw IllegalStateException("No tenant context found")
 
+        val currentUser = getCurrentUser()
+        val userRole = currentUser.role
+        
+        // For CASHIER role, enforce branch filtering - only show sales from their assigned branches
+        val allowedBranchIds = if (userRole == UserRole.CASHIER) {
+            val userBranches = userBranchRepository.findByUserIdAndTenantId(currentUser.id!!, tenantId)
+            val branchIds = userBranches.map { it.branch.id!! }
+            if (branchIds.isEmpty()) {
+                // Cashier with no assigned branches - return empty result
+                return SalesListResponse(
+                    sales = emptyList(),
+                    totalElements = 0,
+                    totalPages = 0,
+                    currentPage = request.page,
+                    pageSize = request.size,
+                    hasNext = false,
+                    hasPrevious = false,
+                    totalFilteredAmount = BigDecimal.ZERO
+                )
+            }
+            branchIds
+        } else {
+            // ADMIN and MANAGER can see all branches
+            null
+        }
+
+        // If cashier specified a branchId, validate it's in their allowed branches
+        if (userRole == UserRole.CASHIER && request.branchId != null) {
+            if (!allowedBranchIds!!.contains(request.branchId)) {
+                throw IllegalStateException("Access denied: You can only view sales from your assigned branches")
+            }
+        }
+
+        // For CASHIER/MANAGER viewing their own sales: use cashierId to show all their sales across branches
+        val isMySalesRequest = (userRole == UserRole.CASHIER || userRole == UserRole.MANAGER) &&
+            request.cashierId == currentUser.id
+
+        // For cashiers, if no branchId specified and not "my sales" request, filter by their allowed branches
+        val effectiveBranchId = if (isMySalesRequest) {
+            null // Don't filter by branch when showing user's own sales across all branches
+        } else if (userRole == UserRole.CASHIER && request.branchId == null && allowedBranchIds != null) {
+            if (allowedBranchIds.size == 1) allowedBranchIds.first() else null
+        } else {
+            request.branchId
+        }
+
         val pageable = PageRequest.of(
             request.page,
             request.size,
@@ -315,66 +383,256 @@ class SalesService(
             )
         )
 
+        // Parse date range: YYYY-MM-DD -> start of start day, end of end day (inclusive)
+        val (parsedStartDate, parsedEndDate) = parseDateRange(request.startDate, request.endDate)
+
         // Build query based on search criteria
-        // Priority: branchId takes precedence over other filters for proper branch isolation
+        // Priority: "my sales" (cashierId for CASHIER/MANAGER) shows user's sales across all branches
         val salesPage = when {
-            // Branch-specific queries (highest priority for branch isolation)
-            request.branchId != null && request.startDate != null && request.endDate != null -> {
+            // CASHIER/MANAGER viewing their own sales - with optional date filter
+            isMySalesRequest && request.paymentMethod != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.findByCashierIdAndBranchIdInAndPaymentMethod(currentUser.id!!, allowedBranchIds, request.paymentMethod!!, pageable)
+                } else {
+                    saleRepository.findByCashierIdAndPaymentMethod(currentUser.id!!, request.paymentMethod!!, pageable)
+                }
+            }
+            isMySalesRequest && parsedStartDate != null && parsedEndDate != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.findByCashierIdAndBranchIdInAndSaleDateBetween(
+                        currentUser.id!!, allowedBranchIds, parsedStartDate, parsedEndDate, pageable
+                    )
+                } else {
+                    saleRepository.findByCashierIdAndSaleDateBetween(
+                        currentUser.id!!, parsedStartDate, parsedEndDate, pageable
+                    )
+                }
+            }
+            isMySalesRequest -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.findByCashierIdAndBranchIdIn(currentUser.id!!, allowedBranchIds, pageable)
+                } else {
+                    saleRepository.findByCashierId(currentUser.id!!, pageable)
+                }
+            }
+            // Branch-specific queries (for branch isolation)
+            effectiveBranchId != null && parsedStartDate != null && parsedEndDate != null -> {
                 saleRepository.findBySaleDateBetweenAndBranchId(
-                    request.startDate, request.endDate, request.branchId, pageable
+                    parsedStartDate, parsedEndDate, effectiveBranchId, pageable
                 )
             }
-            request.branchId != null && request.status != null -> {
-                saleRepository.findByStatusAndBranchId(request.status, request.branchId, pageable)
+            effectiveBranchId != null && request.status != null -> {
+                saleRepository.findByStatusAndBranchId(request.status, effectiveBranchId, pageable)
             }
-            request.branchId != null && request.paymentMethod != null -> {
-                saleRepository.findByPaymentMethodAndBranchId(request.paymentMethod, request.branchId, pageable)
+            effectiveBranchId != null && request.paymentMethod != null -> {
+                saleRepository.findByPaymentMethodAndBranchId(request.paymentMethod, effectiveBranchId, pageable)
             }
-            request.branchId != null && request.customerName != null -> {
-                saleRepository.findByCustomerNameContainingIgnoreCaseAndBranchId(request.customerName, request.branchId, pageable)
+            effectiveBranchId != null && request.customerName != null -> {
+                saleRepository.findByCustomerNameContainingIgnoreCaseAndBranchId(request.customerName, effectiveBranchId, pageable)
             }
-            request.branchId != null && request.saleNumber != null -> {
+            effectiveBranchId != null && request.saleNumber != null -> {
                 val sale = saleRepository.findBySaleNumberAndTenantId(request.saleNumber, tenantId)
-                if (sale.isPresent && sale.get().branch.id == request.branchId) {
+                if (sale.isPresent && sale.get().branch.id == effectiveBranchId) {
                     PageImpl(listOf(sale.get()), pageable, 1)
                 } else {
                     PageImpl(listOf<Sale>(), pageable, 0)
                 }
             }
-            request.branchId != null -> {
+            effectiveBranchId != null -> {
                 // Default branch query - return all sales for the branch
-                saleRepository.findByBranchId(request.branchId, pageable)
+                saleRepository.findByBranchId(effectiveBranchId, pageable)
             }
             
             // Tenant-wide queries (fallback when no branch specified)
-            request.startDate != null && request.endDate != null -> {
-                saleRepository.findBySaleDateBetweenAndTenantId(
-                    request.startDate, request.endDate, tenantId, pageable
+            parsedStartDate != null && parsedEndDate != null -> {
+                val allSales = saleRepository.findBySaleDateBetweenAndTenantId(
+                    parsedStartDate, parsedEndDate, tenantId, pageable
                 )
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null) {
+                    val filtered = allSales.content.filter { allowedBranchIds.contains(it.branch.id) }
+                    PageImpl(filtered, pageable, filtered.size.toLong())
+                } else {
+                    allSales
+                }
             }
             request.customerId != null -> {
-                saleRepository.findByCustomerId(request.customerId, pageable)
+                val allSales = saleRepository.findByCustomerId(request.customerId, pageable)
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null) {
+                    val filtered = allSales.content.filter { allowedBranchIds.contains(it.branch.id) }
+                    PageImpl(filtered, pageable, filtered.size.toLong())
+                } else {
+                    allSales
+                }
             }
             request.cashierId != null -> {
-                saleRepository.findByCashierId(request.cashierId, pageable)
+                val allSales = saleRepository.findByCashierId(request.cashierId, pageable)
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null) {
+                    val filtered = allSales.content.filter { allowedBranchIds.contains(it.branch.id) }
+                    PageImpl(filtered, pageable, filtered.size.toLong())
+                } else {
+                    allSales
+                }
             }
             request.status != null -> {
-                saleRepository.findByStatusAndTenantId(request.status, tenantId, pageable)
+                val allSales = saleRepository.findByStatusAndTenantId(request.status, tenantId, pageable)
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null) {
+                    val filtered = allSales.content.filter { allowedBranchIds.contains(it.branch.id) }
+                    PageImpl(filtered, pageable, filtered.size.toLong())
+                } else {
+                    allSales
+                }
+            }
+            request.paymentMethod != null -> {
+                val allSales = saleRepository.findByPaymentMethodAndTenantId(request.paymentMethod!!, tenantId, pageable)
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null) {
+                    val filtered = allSales.content.filter { allowedBranchIds.contains(it.branch.id) }
+                    PageImpl(filtered, pageable, filtered.size.toLong())
+                } else {
+                    allSales
+                }
             }
             request.saleNumber != null -> {
                 val sale = saleRepository.findBySaleNumberAndTenantId(request.saleNumber, tenantId)
                 if (sale.isPresent) {
-                    PageImpl(listOf(sale.get()), pageable, 1)
+                    val saleObj = sale.get()
+                    // For cashiers, check if sale is from their allowed branch
+                    if (userRole == UserRole.CASHIER && allowedBranchIds != null) {
+                        if (allowedBranchIds.contains(saleObj.branch.id)) {
+                            PageImpl(listOf(saleObj), pageable, 1)
+                        } else {
+                            PageImpl(listOf<Sale>(), pageable, 0)
+                        }
+                    } else {
+                        PageImpl(listOf(saleObj), pageable, 1)
+                    }
                 } else {
                     PageImpl(listOf<Sale>(), pageable, 0)
                 }
             }
             else -> {
-                saleRepository.findByTenantId(tenantId, pageable)
+                val allSales = saleRepository.findByTenantId(tenantId, pageable)
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null) {
+                    val filtered = allSales.content.filter { allowedBranchIds.contains(it.branch.id) }
+                    PageImpl(filtered, pageable, filtered.size.toLong())
+                } else {
+                    allSales
+                }
             }
         }
 
-        // Load line items for each sale in the results
+        // Compute sum of totalAmount for all sales matching the filter (across all pages)
+        val totalFilteredAmount = when {
+            isMySalesRequest && parsedStartDate != null && parsedEndDate != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.sumTotalAmountByCashierIdAndBranchIdInAndSaleDateBetween(
+                        currentUser.id!!, allowedBranchIds, parsedStartDate, parsedEndDate
+                    )
+                } else {
+                    saleRepository.sumTotalAmountByCashierIdAndSaleDateBetween(
+                        currentUser.id!!, parsedStartDate, parsedEndDate
+                    )
+                }
+            }
+            isMySalesRequest && request.paymentMethod != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.sumTotalAmountByCashierIdAndBranchIdInAndPaymentMethod(
+                        currentUser.id!!, allowedBranchIds, request.paymentMethod!!
+                    )
+                } else {
+                    saleRepository.sumTotalAmountByCashierIdAndPaymentMethod(currentUser.id!!, request.paymentMethod!!)
+                }
+            }
+            isMySalesRequest -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.sumTotalAmountByCashierIdAndBranchIdIn(currentUser.id!!, allowedBranchIds)
+                } else {
+                    saleRepository.sumTotalAmountByCashierId(currentUser.id!!)
+                }
+            }
+            effectiveBranchId != null && parsedStartDate != null && parsedEndDate != null ->
+                saleRepository.sumTotalAmountByBranchIdAndSaleDateBetween(
+                    effectiveBranchId!!, parsedStartDate, parsedEndDate
+                )
+            effectiveBranchId != null && request.status != null ->
+                saleRepository.sumTotalAmountByStatusAndBranchId(request.status!!, effectiveBranchId!!)
+            effectiveBranchId != null && request.paymentMethod != null ->
+                saleRepository.sumTotalAmountByPaymentMethodAndBranchId(request.paymentMethod!!, effectiveBranchId!!)
+            effectiveBranchId != null && request.customerName != null ->
+                saleRepository.sumTotalAmountByCustomerNameContainingIgnoreCaseAndBranchId(
+                    request.customerName!!, effectiveBranchId!!
+                )
+            effectiveBranchId != null && request.saleNumber != null -> {
+                val sale = saleRepository.findBySaleNumberAndTenantId(request.saleNumber!!, tenantId)
+                if (sale.isPresent && sale.get().branch.id == effectiveBranchId) sale.get().totalAmount else BigDecimal.ZERO
+            }
+            effectiveBranchId != null ->
+                saleRepository.sumTotalAmountByBranchId(effectiveBranchId!!)
+            parsedStartDate != null && parsedEndDate != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.sumTotalAmountByTenantIdAndBranchIdInAndSaleDateBetween(
+                        tenantId, allowedBranchIds, parsedStartDate, parsedEndDate
+                    )
+                } else {
+                    saleRepository.sumTotalAmountByTenantIdAndSaleDateBetween(
+                        tenantId, parsedStartDate, parsedEndDate
+                    )
+                }
+            }
+            request.customerId != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.sumTotalAmountByCustomerIdAndBranchIdIn(request.customerId!!, allowedBranchIds)
+                } else {
+                    saleRepository.sumTotalAmountByCustomerId(request.customerId!!)
+                }
+            }
+            request.cashierId != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.sumTotalAmountByCashierIdAndTenantIdAndBranchIdIn(
+                        request.cashierId!!, tenantId, allowedBranchIds
+                    )
+                } else {
+                    saleRepository.sumTotalAmountByCashierId(request.cashierId!!)
+                }
+            }
+            request.status != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.sumTotalAmountByStatusAndTenantIdAndBranchIdIn(
+                        request.status!!, tenantId, allowedBranchIds
+                    )
+                } else {
+                    saleRepository.sumTotalAmountByStatusAndTenantId(request.status!!, tenantId)
+                }
+            }
+            request.paymentMethod != null -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    val allByMethod = saleRepository.findByPaymentMethodAndTenantId(request.paymentMethod!!, tenantId, Pageable.unpaged())
+                    val filtered = allByMethod.content.filter { allowedBranchIds.contains(it.branch.id) }
+                    filtered.sumOf { it.totalAmount }
+                } else {
+                    saleRepository.sumTotalAmountByPaymentMethodAndTenantId(request.paymentMethod!!, tenantId)
+                }
+            }
+            request.saleNumber != null -> {
+                val sale = saleRepository.findBySaleNumberAndTenantId(request.saleNumber!!, tenantId)
+                if (sale.isPresent) {
+                    val saleObj = sale.get()
+                    if (userRole == UserRole.CASHIER && allowedBranchIds != null && !allowedBranchIds.contains(saleObj.branch.id)) {
+                        BigDecimal.ZERO
+                    } else {
+                        saleObj.totalAmount
+                    }
+                } else BigDecimal.ZERO
+            }
+            else -> {
+                if (userRole == UserRole.CASHIER && allowedBranchIds != null && allowedBranchIds.isNotEmpty()) {
+                    saleRepository.sumTotalAmountByTenantIdAndBranchIdIn(tenantId, allowedBranchIds)
+                } else {
+                    saleRepository.sumTotalAmountByTenantId(tenantId)
+                }
+            }
+        }
+
+        // Load line items for each sale in the results (inventory is lazy-loaded when computing commission)
         val salesWithLineItems = salesPage.content.map { sale ->
             val lineItems = saleRepository.findLineItemsBySaleId(sale.id!!)
             sale.lineItems.clear()
@@ -384,8 +642,18 @@ class SalesService(
         
         // Create a new page with sales that have line items loaded
         val salesPageWithLineItems = PageImpl(salesWithLineItems, salesPage.pageable, salesPage.totalElements)
-        
-        return salesMapper.toSalesListResponse(salesPageWithLineItems)
+        var response = salesMapper.toSalesListResponse(salesPageWithLineItems, totalFilteredAmount)
+
+        // When cashier/manager is viewing their own sales, attach commission per sale (15% of profit)
+        if (isMySalesRequest) {
+            response = response.copy(
+                sales = response.sales.mapIndexed { i, dto ->
+                    dto.copy(commission = computeCommissionForSale(salesWithLineItems[i]))
+                }
+            )
+        }
+
+        return response
     }
 
     /**
@@ -723,8 +991,8 @@ class SalesService(
                 .quantityChanged(quantityChanged)
                 .quantityBefore(quantityBefore)
                 .quantityAfter(quantityAfter)
-                .unitCost(inventory.unitCost)
-                .sellingPrice(inventory.sellingPrice)
+                .unitCost(inventory.product.unitCost ?: inventory.unitCost)
+                .sellingPrice(inventory.product.sellingPrice ?: inventory.sellingPrice)
                 .batchNumber(inventory.batchNumber)
                 .expiryDate(inventory.expiryDate)
                 .sourceReference(saleNumber)
@@ -761,6 +1029,33 @@ class SalesService(
         val username = authentication.name
        return userRepository.findByUsername(username)
                 ?: throw IllegalStateException("Current user not found: $username")
+    }
+
+    /**
+     * Parses date strings (YYYY-MM-DD or ISO-8601) to OffsetDateTime range.
+     * Returns start of start day and end of end day (inclusive).
+     * Returns (null, null) if either date is null or invalid.
+     */
+    private fun parseDateRange(startStr: String?, endStr: String?): Pair<OffsetDateTime?, OffsetDateTime?> {
+        if (startStr.isNullOrBlank() || endStr.isNullOrBlank()) return Pair(null, null)
+        return try {
+            val zoneOffset = OffsetDateTime.now().offset
+            val start = when {
+                startStr.length == 10 -> LocalDate.parse(startStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                    .atStartOfDay().atOffset(zoneOffset)
+                else -> OffsetDateTime.parse(startStr)
+            }
+            val end = when {
+                endStr.length == 10 -> LocalDate.parse(endStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                    .plusDays(1).atStartOfDay().atOffset(zoneOffset).minusNanos(1) // End of day inclusive
+                else -> OffsetDateTime.parse(endStr)
+            }
+            if (start.isAfter(end)) return Pair(null, null)
+            Pair(start, end)
+        } catch (e: DateTimeParseException) {
+            logger.warn("Invalid date format in search: start=$startStr end=$endStr", e)
+            Pair(null, null)
+        }
     }
 
     /**

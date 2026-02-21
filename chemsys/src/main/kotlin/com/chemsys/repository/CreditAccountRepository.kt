@@ -19,6 +19,12 @@ import java.util.*
 interface CreditAccountRepository : JpaRepository<CreditAccount, UUID> {
 
     /**
+     * Find all credit accounts for a tenant (all branches), with pagination.
+     * Used when no branch filter is applied so credit management shows all accounts.
+     */
+    fun findByTenantId(tenantId: UUID, pageable: Pageable): Page<CreditAccount>
+
+    /**
      * Find all credit accounts for a specific tenant and branch
      */
     fun findByTenantIdAndBranchId(tenantId: UUID, branchId: UUID, pageable: Pageable): Page<CreditAccount>
@@ -29,17 +35,22 @@ interface CreditAccountRepository : JpaRepository<CreditAccount, UUID> {
     fun findByCustomerIdAndTenantId(customerId: UUID, tenantId: UUID): List<CreditAccount>
 
     /**
-     * Find credit accounts by status
+     * Find credit accounts by status for a tenant (all branches).
+     */
+    fun findByStatusAndTenantId(status: CreditStatus, tenantId: UUID, pageable: Pageable): Page<CreditAccount>
+
+    /**
+     * Find credit accounts by status for a tenant and branch.
      */
     fun findByStatusAndTenantIdAndBranchId(
-        status: CreditStatus, 
-        tenantId: UUID, 
-        branchId: UUID, 
+        status: CreditStatus,
+        tenantId: UUID,
+        branchId: UUID,
         pageable: Pageable
     ): Page<CreditAccount>
 
     /**
-     * Find overdue credit accounts (past expected payment date)
+     * Find overdue credit accounts (past expected payment date) for a branch.
      */
     @Query("""
         SELECT ca FROM CreditAccount ca 
@@ -51,6 +62,20 @@ interface CreditAccountRepository : JpaRepository<CreditAccount, UUID> {
     fun findOverdueAccounts(
         @Param("tenantId") tenantId: UUID,
         @Param("branchId") branchId: UUID,
+        @Param("currentDate") currentDate: LocalDate
+    ): List<CreditAccount>
+
+    /**
+     * Find overdue credit accounts for a tenant (all branches).
+     */
+    @Query("""
+        SELECT ca FROM CreditAccount ca 
+        WHERE ca.tenant.id = :tenantId 
+        AND ca.status IN ('ACTIVE', 'OVERDUE')
+        AND ca.expectedPaymentDate < :currentDate
+    """)
+    fun findOverdueAccountsByTenantId(
+        @Param("tenantId") tenantId: UUID,
         @Param("currentDate") currentDate: LocalDate
     ): List<CreditAccount>
 

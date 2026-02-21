@@ -1,216 +1,152 @@
 <div class="customers-container">
   <!-- Header -->
   <div class="customers-header">
-    <div class="flex items-center gap-4">
-      <h1 class="text-2xl font-semibold text-gray-900">Customer Management</h1>
-      <div class="flex items-center gap-2 text-sm text-gray-600">
-        <mat-icon fontIcon="people" class="text-base"></mat-icon>
-        <span>{{ totalElements() }} customers</span>
-      </div>
+    <div>
+      <h1 class="page-title">Customer Management</h1>
+      <p class="page-subtitle">
+        <mat-icon fontIcon="people" class="align-middle text-base"></mat-icon>
+        {{ totalElements() }} customers
+      </p>
     </div>
-    <div class="flex items-center gap-3">
-      <button 
-        (click)="showCreateCustomerForm()"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-brand-coral text-white rounded-lg hover:bg-brand-coral/90 transition-colors">
-        <mat-icon fontIcon="person_add" class="text-base"></mat-icon>
-        Add Customer
-      </button>
-    </div>
+    <app-primary-button label="Add Customer" icon="person_add" (click)="showCreateCustomerForm()"></app-primary-button>
   </div>
 
   <!-- Search -->
-  <div class="search-section">
-    <div class="search-input">
-      <mat-icon fontIcon="search" class="search-icon"></mat-icon>
-      <input
-        matInput
-        [(ngModel)]="searchQuery"
-        (ngModelChange)="onSearchChange()"
-        placeholder="Search customers by name, phone, or email..."
-        class="search-field">
-    </div>
-  </div>
+  <mat-card class="search-card">
+    <mat-card-content>
+      <mat-form-field class="search-field"  subscriptSizing="dynamic">
+        <mat-label>Search customers</mat-label>
+        <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()" placeholder="Name, phone, or email..." />
+        <mat-icon matPrefix>search</mat-icon>
+      </mat-form-field>
+    </mat-card-content>
+  </mat-card>
 
-  <!-- Customer Form -->
-  <div *ngIf="showCreateForm()" class="customer-form-container">
-    <div class="customer-form-header">
-      <h2 class="text-lg font-semibold text-gray-900">
-        {{ editingCustomer() ? 'Edit Customer' : 'Add New Customer' }}
-      </h2>
-      <button 
-        (click)="hideCustomerForm()"
-        class="close-btn">
-        <mat-icon fontIcon="close" class="text-base"></mat-icon>
+  <!-- Customer Form (inline) -->
+  <mat-card *ngIf="showCreateForm()" class="form-card">
+    <mat-card-header class="form-card-header">
+      <mat-card-title>{{ editingCustomer() ? 'Edit Customer' : 'Add New Customer' }}</mat-card-title>
+      <button mat-icon-button type="button" (click)="hideCustomerForm()" matTooltip="Close" class="close-form-btn">
+        <mat-icon>close</mat-icon>
       </button>
-    </div>
+    </mat-card-header>
+    <mat-card-content>
+      <form class="customer-form" (ngSubmit)="editingCustomer() ? updateCustomer() : createCustomer()">
+        <div class="form-row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>First Name</mat-label>
+            <input matInput [(ngModel)]="customerForm.firstName" name="firstName" required placeholder="First name" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Last Name</mat-label>
+            <input matInput [(ngModel)]="customerForm.lastName" name="lastName" placeholder="Last name" />
+          </mat-form-field>
+        </div>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="form-full-width">
+          <mat-label>Phone Number</mat-label>
+          <input matInput [(ngModel)]="customerForm.phone" name="phone" placeholder="Phone number" />
+        </mat-form-field>
+        <div class="form-actions">
+          <app-secondary-button label="Cancel" type="button" (click)="hideCustomerForm()"></app-secondary-button>
+          <app-primary-button
+            [label]="editingCustomer() ? 'Update Customer' : 'Create Customer'"
+            type="submit"
+            icon="save"></app-primary-button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
 
-    <div class="customer-form">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">First Name *</label>
-          <input
-            matInput
-            [(ngModel)]="customerForm.firstName"
-            placeholder="Enter first name"
-            class="form-input">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Last Name *</label>
-          <input
-            matInput
-            [(ngModel)]="customerForm.lastName"
-            placeholder="Enter last name"
-            class="form-input">
-        </div>
+  <!-- Table Card -->
+  <mat-card class="table-card">
+    <mat-card-header class="table-card-header">
+      <mat-card-title>Customer list</mat-card-title>
+      <app-icon-button icon="refresh" (click)="loadCustomers()" [disabled]="loading()" matTooltip="Refresh"></app-icon-button>
+    </mat-card-header>
+    <mat-card-content class="table-card-content">
+      <!-- Loading -->
+      <div *ngIf="loading()" class="loading-state">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Loading customers...</p>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Phone Number</label>
-          <input
-            matInput
-            [(ngModel)]="customerForm.phone"
-            placeholder="Enter phone number"
-            class="form-input">
-        </div>
+      <!-- Empty state -->
+      <div *ngIf="!loading() && customers().length === 0" class="empty-state">
+        <mat-icon fontIcon="people" class="empty-icon"></mat-icon>
+        <h3>No customers found</h3>
+        <p>Try adjusting your search or add a new customer.</p>
+        <app-primary-button label="Add Customer" icon="person_add" (click)="showCreateCustomerForm()" class="mt-4"></app-primary-button>
       </div>
 
-      <div class="form-actions">
-        <button 
-          (click)="editingCustomer() ? updateCustomer() : createCustomer()"
-          class="save-btn">
-          <mat-icon fontIcon="save" class="text-base"></mat-icon>
-          {{ editingCustomer() ? 'Update Customer' : 'Create Customer' }}
-        </button>
-        <button 
-          (click)="hideCustomerForm()"
-          class="cancel-btn">
-          <mat-icon fontIcon="cancel" class="text-base"></mat-icon>
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Customers Table -->
-  <div class="customers-table-container">
-    <div *ngIf="loading()" class="loading-state">
-      <mat-icon fontIcon="hourglass_empty" class="animate-spin text-4xl text-brand-sky"></mat-icon>
-      <p class="text-gray-600">Loading customers...</p>
-    </div>
-
-    <div *ngIf="!loading() && customers().length === 0" class="empty-state">
-      <mat-icon fontIcon="people" class="text-6xl text-gray-300"></mat-icon>
-      <h3 class="text-lg font-medium text-gray-900">No customers found</h3>
-      <p class="text-gray-500">Try adjusting your search criteria or add a new customer.</p>
-      <button 
-        (click)="showCreateCustomerForm()"
-        class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-brand-coral text-white rounded-lg hover:bg-brand-coral/90 transition-colors">
-        <mat-icon fontIcon="person_add" class="text-base"></mat-icon>
-        Add Customer
-      </button>
-    </div>
-
-    <div *ngIf="!loading() && customers().length > 0" class="table-wrapper">
-      <table mat-table [dataSource]="customers()" class="customers-table">
-        <!-- Customer Number Column -->
-        <ng-container matColumnDef="customerNumber">
-          <th mat-header-cell *matHeaderCellDef>Customer #</th>
-          <td mat-cell *matCellDef="let customer">
-            <span class="customer-number">{{ customer.customerNumber }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Name Column -->
-        <ng-container matColumnDef="name">
-          <th mat-header-cell *matHeaderCellDef>Name</th>
-          <td mat-cell *matCellDef="let customer">
-            <div class="customer-name">
+      <!-- Table -->
+      <div *ngIf="!loading() && customers().length > 0" class="table-wrapper">
+        <table mat-table [dataSource]="customers()" class="customers-table">
+          <ng-container matColumnDef="customerNumber">
+            <th mat-header-cell *matHeaderCellDef>Customer #</th>
+            <td mat-cell *matCellDef="let customer">
+              <span class="customer-number">{{ customer.customerNumber }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let customer">
               <span class="font-medium text-gray-900">{{ getCustomerFullName(customer) }}</span>
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Phone Column -->
-        <ng-container matColumnDef="phone">
-          <th mat-header-cell *matHeaderCellDef>Phone</th>
-          <td mat-cell *matCellDef="let customer">
-            <span class="customer-phone">{{ customer.phone || 'N/A' }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Email Column -->
-        <ng-container matColumnDef="email">
-          <th mat-header-cell *matHeaderCellDef>Email</th>
-          <td mat-cell *matCellDef="let customer">
-            <span class="customer-email">{{ customer.email || 'N/A' }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Insurance Provider Column -->
-        <ng-container matColumnDef="insuranceProvider">
-          <th mat-header-cell *matHeaderCellDef>Insurance</th>
-          <td mat-cell *matCellDef="let customer">
-            <span class="insurance-provider">{{ customer.insuranceProvider || 'N/A' }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Status Column -->
-        <ng-container matColumnDef="isActive">
-          <th mat-header-cell *matHeaderCellDef>Status</th>
-          <td mat-cell *matCellDef="let customer">
-            <span class="status-badge" [ngClass]="getStatusBadgeClass(customer.isActive)">
-              {{ customer.isActive ? 'Active' : 'Inactive' }}
-            </span>
-          </td>
-        </ng-container>
-
-        <!-- Created Date Column -->
-        <ng-container matColumnDef="createdAt">
-          <th mat-header-cell *matHeaderCellDef>Created</th>
-          <td mat-cell *matCellDef="let customer">
-            <span class="created-date">{{ formatDate(customer.createdAt) }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Actions Column -->
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>Actions</th>
-          <td mat-cell *matCellDef="let customer">
-            <div class="action-buttons">
-              <button 
-                (click)="showEditCustomerForm(customer)"
-                class="action-btn edit-btn"
-                matTooltip="Edit Customer">
-                <mat-icon fontIcon="edit" class="text-sm"></mat-icon>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="phone">
+            <th mat-header-cell *matHeaderCellDef>Phone</th>
+            <td mat-cell *matCellDef="let customer">{{ customer.phone || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="email">
+            <th mat-header-cell *matHeaderCellDef>Email</th>
+            <td mat-cell *matCellDef="let customer">{{ customer.email || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="insuranceProvider">
+            <th mat-header-cell *matHeaderCellDef>Insurance</th>
+            <td mat-cell *matCellDef="let customer">{{ customer.insuranceProvider || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="isActive">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let customer">
+              <span class="status-badge" [ngClass]="getStatusBadgeClass(customer.isActive)">
+                {{ customer.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="createdAt">
+            <th mat-header-cell *matHeaderCellDef>Created</th>
+            <td mat-cell *matCellDef="let customer">{{ formatDate(customer.createdAt) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let customer">
+              <button mat-icon-button [matMenuTriggerFor]="actionsMenu" class="actions-trigger" matTooltip="Actions">
+                <mat-icon>more_vert</mat-icon>
               </button>
-              
-              <button 
-                (click)="createCreditAccount(customer)"
-                class="action-btn credit-btn"
-                matTooltip="Create Credit Account">
-                <mat-icon fontIcon="credit_card" class="text-sm"></mat-icon>
-              </button>
-              
-              <button 
-                (click)="viewCustomerSales(customer.id)"
-                class="action-btn view-btn"
-                matTooltip="View Sales">
-                <mat-icon fontIcon="receipt_long" class="text-sm"></mat-icon>
-              </button>
-            </div>
-          </td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="table-row"></tr>
-      </table>
-    </div>
-  </div>
-
-  <!-- Pagination -->
-  <div *ngIf="!loading() && customers().length > 0" class="pagination-container">
+              <mat-menu #actionsMenu="matMenu">
+                <button mat-menu-item (click)="showEditCustomerForm(customer)">
+                  <mat-icon>edit</mat-icon>
+                  <span>Edit</span>
+                </button>
+                <button mat-menu-item (click)="createCreditAccount(customer)">
+                  <mat-icon>credit_card</mat-icon>
+                  <span>Create Credit Account</span>
+                </button>
+                <button mat-menu-item (click)="viewCustomerSales(customer)">
+                  <mat-icon>receipt_long</mat-icon>
+                  <span>View Sales</span>
+                </button>
+              </mat-menu>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="table-row"></tr>
+        </table>
+      </div>
+    </mat-card-content>
+    <!-- Pagination -->
     <mat-paginator
+      *ngIf="!loading() && customers().length > 0"
       [length]="totalElements()"
       [pageSize]="pageSize()"
       [pageIndex]="currentPage()"
@@ -218,5 +154,5 @@
       (page)="onPageChange($event)"
       showFirstLastButtons>
     </mat-paginator>
-  </div>
+  </mat-card>
 </div>

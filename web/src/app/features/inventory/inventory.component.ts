@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { skip, take } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material/dialog';
@@ -10,6 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatTabsModule } from '@angular/material/tabs';
 
 // Professional Button Components
 import {
@@ -23,10 +25,15 @@ import {
 
 import { InventoryService, InventoryDto, InventoryStats } from '../../core/services/inventory.service';
 import { BranchesService, BranchDto } from '../../core/services/branches.service';
+import { BranchContextService } from '../../core/services/branch-context.service';
+import { PosPrefillService } from '../../core/services/pos-prefill.service';
+import { Router } from '@angular/router';
 import { CreateInventoryDialogComponent } from './create-inventory.dialog';
 import { AdjustInventoryDialogComponent } from './adjust-inventory.dialog';
 import { TransferInventoryDialogComponent } from './transfer-inventory.dialog';
 import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
+import { InventoryTransferHistoryDialogComponent } from './transfer-history.dialog';
+import {MatButton} from '@angular/material/button';
 
 /**
  * Inventory component for managing stock levels, transfers, and alerts.
@@ -35,6 +42,12 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
 @Component({
   selector: 'app-inventory',
   standalone: true,
+  styles: [`
+    :host ::ng-deep .inventory-branch-tabs .mat-mdc-tab-body-wrapper { display: none; }
+    @media (max-width: 767px) {
+      :host .stats-section.stats-collapsed .stats-cards-grid { display: none; }
+    }
+  `],
   imports: [
     CommonModule,
     FormsModule,
@@ -45,24 +58,27 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
     MatProgressSpinnerModule,
     MatTooltipModule,
     MatChipsModule,
+    MatTabsModule,
     // Professional Button Components
     PrimaryButtonComponent,
     SecondaryButtonComponent,
     AccentButtonComponent,
     DangerButtonComponent,
     IconButtonComponent,
-    TextButtonComponent
+    TextButtonComponent,
+    MatButton
   ],
   template: `
-    <div class="min-h-screen bg-gray-50 p-6">
+    <div class="bg-gray-50 p-4 sm:p-6 pb-8">
       <!-- Header -->
-      <div class="mb-6">
+      <div class="mb-4">
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-3xl font-bold text-gray-900">Inventory Management</h1>
             <p class="text-gray-600 mt-1">Monitor stock levels, manage transfers, and track alerts</p>
           </div>
           <app-primary-button
+            *ngIf="isAdmin && branchContext.currentBranch"
             label="Add Stock"
             icon="add"
             (click)="createInventory()">
@@ -70,116 +86,98 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
         </div>
       </div>
 
-      <!-- Stats Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-brand-sky">
-          <div class="flex items-center">
-            <div class="p-2 bg-brand-sky/20 rounded-lg">
-              <mat-icon class="text-brand-sky">inventory_2</mat-icon>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-600">Total Items</p>
-              <p class="text-2xl font-bold text-gray-900">{{ stats.totalItems || 0 }}</p>
-            </div>
+      <!-- Branch tabs: All Branches (admin) or branch in context (others) -->
+      <div class="bg-white rounded-lg shadow border border-gray-200 mb-4 overflow-hidden">
+        <mat-tab-group
+          *ngIf="branchTabs.length > 0"
+          [(selectedIndex)]="selectedTabIndex"
+          (selectedIndexChange)="onTabChange($event)"
+          class="inventory-branch-tabs"
+          animationDuration="0ms">
+          <mat-tab *ngFor="let tab of branchTabs; let i = index" [label]="tab.label"></mat-tab>
+        </mat-tab-group>
+        <div class="px-4 pb-4 pt-2 flex flex-wrap items-center gap-4 border-t border-gray-100">
+          <div class="filter-group flex flex-col gap-2 min-w-0 md:min-w-[180px]">
+            <label class="text-sm font-medium text-gray-700">Status</label>
+            <select
+              [ngModel]="statusFilter"
+              (ngModelChange)="statusFilter = $event; applyFilters()"
+              class="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-mint focus:border-transparent">
+              <option value="">All</option>
+              <option value="low_stock">Low Stock</option>
+              <option value="out_of_stock">Out of Stock</option>
+            </select>
           </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-brand-coral">
-          <div class="flex items-center">
-            <div class="p-2 bg-brand-coral/20 rounded-lg">
-              <mat-icon class="text-brand-coral">warning</mat-icon>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-600">Low Stock</p>
-              <p class="text-2xl font-bold text-gray-900">{{ stats.lowStockCount || 0 }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
-          <div class="flex items-center">
-            <div class="p-2 bg-orange-500/20 rounded-lg">
-              <mat-icon class="text-orange-500">schedule</mat-icon>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-600">Expiring Soon</p>
-              <p class="text-2xl font-bold text-gray-900">{{ stats.expiringCount || 0 }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-          <div class="flex items-center">
-            <div class="p-2 bg-green-500/20 rounded-lg">
-              <mat-icon class="text-green-500">attach_money</mat-icon>
-            </div>
-            <div class="ml-3">
-              <p class="text-sm font-medium text-gray-600">Total Value</p>
-              <p class="text-2xl font-bold text-gray-900">KES {{ (stats.totalValue || 0).toLocaleString() }}</p>
-            </div>
+          <div class="flex items-end">
+            <button
+              type="button"
+              (click)="clearFilters()"
+              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-sm">
+              <mat-icon class="!text-base !w-4 !h-4">clear</mat-icon>
+              Clear Filters
+            </button>
           </div>
         </div>
       </div>
 
-      <!-- Quick Actions & Search -->
-      <div class="bg-white rounded-lg shadow p-4 mb-6">
-        <div class="flex flex-col md:flex-row gap-4">
-          <!-- Quick Actions -->
-          <div class="flex gap-2">
-            <app-secondary-button
-              label="Adjust Stock"
-              icon="tune"
-              (click)="adjustInventory()">
-            </app-secondary-button>
-            <app-secondary-button
-              label="Transfer"
-              icon="swap_horiz"
-              (click)="transferInventory()">
-            </app-secondary-button>
-            <app-accent-button
-              label="Alerts"
-              icon="notifications"
-              (click)="viewAlerts()">
-            </app-accent-button>
+      <!-- Stats Cards (collapsible on mobile, collapsed by default) -->
+      <div class="stats-section mb-4" [class.stats-collapsed]="statsCollapsed">
+        <div class="flex items-center justify-between mb-2 md:mb-3">
+          <p class="text-sm text-gray-500">{{ getStatsContextLabel() }}</p>
+          <button
+            type="button"
+            class="md:hidden flex items-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm text-gray-700"
+            (click)="statsCollapsed = !statsCollapsed"
+            [attr.aria-expanded]="!statsCollapsed">
+            <span>{{ statsCollapsed ? 'Show stats' : 'Hide stats' }}</span>
+            <mat-icon class="!text-lg !w-5 !h-5">{{ statsCollapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+          </button>
+        </div>
+        <div class="stats-cards-grid grid grid-cols-1 md:grid-cols-3 gap-4" [ngClass]="{'md:grid-cols-4': isAdmin}">
+          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-brand-sky">
+            <div class="flex items-center">
+              <div class="p-2 bg-brand-sky/20 rounded-lg">
+                <mat-icon class="text-brand-sky">inventory_2</mat-icon>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm font-medium text-gray-600">Total Items</p>
+                <p class="text-2xl font-bold text-gray-900">{{ stats.totalItems ?? 0 }}</p>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-brand-coral">
+            <div class="flex items-center">
+              <div class="p-2 bg-brand-coral/20 rounded-lg">
+                <mat-icon class="text-brand-coral">warning</mat-icon>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm font-medium text-gray-600">Low Stock</p>
+                <p class="text-2xl font-bold text-gray-900">{{ stats.lowStockCount ?? 0 }}</p>
+              </div>
+            </div>
           </div>
 
-          <!-- Search and Filters -->
-          <div class="flex-1 flex flex-col md:flex-row gap-4">
-            <mat-form-field class="flex-1">
-              <mat-label>Search Inventory</mat-label>
-              <mat-icon matPrefix class="mr-2 opacity-60">search</mat-icon>
-              <input
-                matInput
-                [(ngModel)]="searchQuery"
-                (input)="onSearch()"
-                placeholder="Search by product name, batch, or branch..." />
-            </mat-form-field>
+          <div *ngIf="isAdmin" class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+            <div class="flex items-center">
+              <div class="p-2 bg-green-500/20 rounded-lg">
+                <mat-icon class="text-green-500">attach_money</mat-icon>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm font-medium text-gray-600">Total Value</p>
+                <p class="text-2xl font-bold text-gray-900">KES {{ (stats.totalValue ?? 0).toLocaleString() }}</p>
+              </div>
+            </div>
+          </div>
+          </div>
+        </div>
+      </div>
 
-            <mat-form-field class="w-full md:w-48">
-              <mat-label>Filter by Branch</mat-label>
-              <mat-select [(ngModel)]="branchFilter" (selectionChange)="applyFilters()">
-                <mat-option value="">All Branches</mat-option>
-                <mat-option *ngFor="let branch of branches" [value]="branch.id">
-                  {{ branch.name }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field class="w-full md:w-48">
-              <mat-label>Filter by Status</mat-label>
-              <mat-select [(ngModel)]="statusFilter" (selectionChange)="applyFilters()">
-                <mat-option value="">All Status</mat-option>
-                <mat-option value="low_stock">Low Stock</mat-option>
-                <mat-option value="expiring">Expiring Soon</mat-option>
-                <mat-option value="expired">Expired</mat-option>
-                <mat-option value="normal">Normal</mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <app-secondary-button
-              label="Clear Filters"
-              (click)="clearFilters()">
-            </app-secondary-button>
+      <!-- Quick Actions -->
+      <div class="mb-4">
+        <div class="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide md:overflow-x-visible md:pb-0 md:mx-0 md:px-0" style="scrollbar-width: none; -ms-overflow-style: none;">
+          <div class="flex gap-2 flex-nowrap min-w-max md:flex-wrap md:min-w-0">
+             <app-secondary-button *ngIf="isAdmin" label="Transfer History" icon="history" (click)="viewTransferHistory()"></app-secondary-button>
+<!--            <app-accent-button label="Alerts" icon="notifications" (click)="viewAlerts()"></app-accent-button>-->
           </div>
         </div>
       </div>
@@ -193,11 +191,20 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
               <span class="text-sm text-gray-600">{{ filteredInventory.length }} of {{ inventory.length }} items</span>
               <app-icon-button
                 icon="refresh"
-                (click)="refreshInventory()"
+                (click)="refreshInventory(branchFilter || undefined)"
                 [disabled]="loading"
                 matTooltip="Refresh">
               </app-icon-button>
             </div>
+          </div>
+          <div class="mt-4 flex-1 relative min-w-0 max-w-md">
+            <mat-icon class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 !text-xl !w-5 !h-5">search</mat-icon>
+            <input
+              matInput
+              [(ngModel)]="searchQuery"
+              (input)="onSearch()"
+              placeholder="Search by product name, batch, or branch..."
+              class="!pl-10 w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-mint focus:border-transparent">
           </div>
         </div>
 
@@ -206,10 +213,10 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
             <mat-spinner diameter="40"></mat-spinner>
           </div>
 
-          <div *ngIf="!loading && filteredInventory.length === 0" class="text-center py-12 text-gray-500">
-            <mat-icon class="text-6xl text-gray-300 mb-4">inventory_2</mat-icon>
-            <h3 class="text-xl font-semibold text-gray-400 mb-2">No inventory items found</h3>
-            <p class="text-gray-400">Try adjusting your search or filters, or add your first inventory item.</p>
+          <div *ngIf="!loading && filteredInventory.length === 0" class="text-center py-8 text-gray-500">
+            <mat-icon class="text-5xl text-gray-300 mb-3">inventory_2</mat-icon>
+            <h3 class="text-lg font-semibold text-gray-400 mb-1">No inventory items found</h3>
+            <p class="text-sm text-gray-400">Try adjusting your search or filters, or add your first inventory item.</p>
           </div>
 
           <!-- Desktop Table View (lg screens and up) -->
@@ -221,9 +228,8 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expiry</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Selling Price</th>
+                    <th *ngIf="isAdmin" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -257,43 +263,42 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
                       </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="text-sm text-gray-900">{{ item.batchNumber || 'N/A' }}</div>
+                      <div *ngIf="item.sellingPrice" class="text-sm text-gray-900">KES {{ item.sellingPrice }}</div>
+                      <div *ngIf="!item.sellingPrice" class="text-sm text-gray-500">N/A</div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <div *ngIf="item.expiryDate" class="text-sm text-gray-900">
-                        {{ item.expiryDate | date:'shortDate' }}
-                        <div *ngIf="item.daysUntilExpiry !== undefined"
-                             [ngClass]="item.daysUntilExpiry <= 30 ? 'text-orange-600' : 'text-gray-500'"
-                             class="text-xs">
-                          {{ item.daysUntilExpiry }} days
-                        </div>
-                      </div>
-                      <div *ngIf="!item.expiryDate" class="text-sm text-gray-500">N/A</div>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td *ngIf="isAdmin" class="px-6 py-4 whitespace-nowrap">
                       <div *ngIf="item.unitCost" class="text-sm text-gray-900">KES {{ item.unitCost }}</div>
                       <div *ngIf="!item.unitCost" class="text-sm text-gray-500">N/A</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                      <div *ngIf="item.unitCost" class="text-sm font-medium text-gray-900">
+                      <div *ngIf="isAdmin && item.unitCost" class="text-sm font-medium text-gray-900">
                         KES {{ (item.quantity * item.unitCost).toFixed(2) }}
                       </div>
-                      <div *ngIf="!item.unitCost" class="text-sm text-gray-500">N/A</div>
+                      <div *ngIf="!isAdmin || !item.unitCost" class="text-sm text-gray-500">N/A</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div class="flex gap-2">
                         <app-secondary-button
+                          *ngIf="isAdmin && canOperateOnItem(item)"
                           label="Adjust"
                           icon="tune"
                           size="small"
                           (click)="adjustItem(item)">
                         </app-secondary-button>
                         <app-secondary-button
+                          *ngIf="canOperateOnItem(item)"
                           label="Transfer"
                           icon="swap_horiz"
                           size="small"
                           (click)="transferItem(item)">
                         </app-secondary-button>
+                        <app-accent-button
+                          *ngIf="canOperateOnItem(item) && item.quantity > 0"
+                          label="Sell"
+                          icon="point_of_sale"
+                          size="small"
+                          (click)="sellItem(item)">
+                        </app-accent-button>
                       </div>
                     </td>
                   </tr>
@@ -321,12 +326,6 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
                     <mat-icon class="text-xs">warning</mat-icon>
                     Low Stock
                   </span>
-                  <span
-                    *ngIf="item.expiringAlert"
-                    class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800">
-                    <mat-icon class="text-xs">schedule</mat-icon>
-                    Expiring
-                  </span>
                 </div>
               </div>
 
@@ -338,48 +337,18 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
                     {{ item.quantity }}
                   </span>
                 </div>
-                <div *ngIf="item.batchNumber" class="text-sm text-gray-600">
-                  <span class="font-medium">Batch:</span> {{ item.batchNumber }}
-                </div>
-                <div *ngIf="item.expiryDate" class="text-sm text-gray-600">
-                  <span class="font-medium">Expiry:</span> {{ item.expiryDate | date:'shortDate' }}
-                  <span *ngIf="item.daysUntilExpiry !== undefined"
-                        [ngClass]="item.daysUntilExpiry <= 30 ? 'text-orange-600' : 'text-gray-500'"
-                        class="ml-1 text-xs">
-                    ({{ item.daysUntilExpiry }} days)
-                  </span>
-                </div>
-                <div *ngIf="item.unitCost" class="text-sm text-gray-600">
+                <div *ngIf=" item.unitCost" class="text-sm text-gray-600">
                   <span class="font-medium">Unit Cost:</span> KES {{ item.unitCost }}
-                </div>
-                <div *ngIf="item.locationInBranch" class="text-sm text-gray-600">
-                  <span class="font-medium">Location:</span> {{ item.locationInBranch }}
                 </div>
               </div>
 
               <!-- Stock Level Indicator -->
-              <div class="mb-4">
-                <div class="flex items-center justify-between mb-1">
-                  <span class="text-sm font-medium text-gray-700">Stock Level</span>
-                  <span class="text-sm text-gray-500">{{ getStockPercentage(item) }}%</span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    class="h-2 rounded-full transition-all duration-300"
-                    [ngClass]="getStockLevelClass(item)"
-                    [style.width.%]="getStockPercentage(item)">
-                  </div>
-                </div>
-                <div class="flex justify-between mt-1 text-xs text-gray-500">
-                  <span>Min Stock</span>
-                  <span *ngIf="item.quantity > 0">Current: {{ item.quantity }}</span>
-                </div>
-              </div>
+
 
               <!-- Financial Information -->
-              <div *ngIf="item.unitCost || item.sellingPrice" class="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div *ngIf="(isAdmin && item.unitCost) || item.sellingPrice" class="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div class="grid grid-cols-2 gap-2 text-sm">
-                  <div *ngIf="item.unitCost">
+                  <div *ngIf="isAdmin && item.unitCost">
                     <span class="font-medium text-gray-600">Cost:</span>
                     <p class="text-gray-900">KES {{ item.unitCost }}</p>
                   </div>
@@ -387,7 +356,7 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
                     <span class="font-medium text-gray-600">Price:</span>
                     <p class="text-gray-900">KES {{ item.sellingPrice }}</p>
                   </div>
-                  <div *ngIf="item.unitCost && item.sellingPrice" class="col-span-2">
+                  <div *ngIf="isAdmin && item.unitCost && item.sellingPrice" class="col-span-2">
                     <span class="font-medium text-gray-600">Value:</span>
                     <p class="text-gray-900 font-semibold">KES {{ (item.quantity * item.unitCost).toFixed(2) }}</p>
                   </div>
@@ -395,36 +364,41 @@ import { InventoryAlertsDialogComponent } from './inventory-alerts.dialog';
               </div>
 
               <!-- Actions -->
-              <div class="flex gap-2">
+              <div class="flex gap-2 flex-wrap">
                 <button
+                  *ngIf="isAdmin && canOperateOnItem(item)"
                   mat-stroked-button
                   size="small"
                   (click)="adjustItem(item)"
-                  class="flex-1">
+                  class="flex-1 min-w-0">
                   <mat-icon class="text-xs">tune</mat-icon>
                   Adjust
                 </button>
                 <button
+                  *ngIf="canOperateOnItem(item)"
                   mat-stroked-button
                   size="small"
                   (click)="transferItem(item)"
-                  class="flex-1">
+                  class="flex-1 min-w-0">
                   <mat-icon class="text-xs">swap_horiz</mat-icon>
                   Transfer
                 </button>
                 <button
-                  mat-icon-button
+                  *ngIf="canOperateOnItem(item) && item.quantity > 0"
+                  mat-stroked-button
                   size="small"
-                  (click)="viewItemDetails(item)"
-                  matTooltip="View Details">
-                  <mat-icon class="text-xs">visibility</mat-icon>
+                  color="success"
+                  (click)="sellItem(item)"
+                  class="flex-1 min-w-0">
+                  <mat-icon class="text-xs">point_of_sale</mat-icon>
+                  Sell
                 </button>
+
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
   `
 })
 export class InventoryComponent implements OnInit {
@@ -435,6 +409,19 @@ export class InventoryComponent implements OnInit {
   searchQuery = '';
   branchFilter = '';
   statusFilter = '';
+  /** Tabs for branch switching: admins get "All Branches" + one per branch; others get branch in context. */
+  branchTabs: { label: string; branchId: string }[] = [];
+  selectedTabIndex = 0;
+  /** Stats cards collapsed on mobile for a neater viewport; only affects layout on small screens. */
+  statsCollapsed = true;
+  isAdmin = (() => {
+    try {
+      const role = JSON.parse(localStorage.getItem('auth_user') || '{}')?.role;
+      return role === 'ADMIN' || role === 'PLATFORM_ADMIN';
+    } catch {
+      return false;
+    }
+  })();
   stats: InventoryStats = {
     totalItems: 0,
     totalValue: 0,
@@ -445,23 +432,73 @@ export class InventoryComponent implements OnInit {
   constructor(
     private inventoryService: InventoryService,
     private branchesService: BranchesService,
+    readonly branchContext: BranchContextService,
+    private posPrefillService: PosPrefillService,
+    private router: Router,
     private dialog: MatDialog,
     private snackBar: MatSnackBar
   ) { }
 
   ngOnInit(): void {
-    this.loadInventory();
     this.loadBranches();
+    this.branchContext.currentBranch$.subscribe(() => {
+      this.buildBranchTabs();
+      this.loadData();
+    });
+  }
+
+  /** Builds branch tabs: everyone sees "All Branches" then each branch (view-only for non-admins on other branches). Default tab: admins = All Branches, others = their current branch. */
+  buildBranchTabs(): void {
+    this.branchTabs = [
+      { label: 'All Branches', branchId: '' },
+      ...this.branches.map(b => ({ label: b.name, branchId: b.id }))
+    ];
+    if (this.isAdmin) {
+      this.selectedTabIndex = 0;
+      this.branchFilter = '';
+    } else {
+      const current = this.branchContext.currentBranch;
+      const idx = current ? this.branchTabs.findIndex(t => t.branchId === current.id) : -1;
+      this.selectedTabIndex = idx >= 0 ? idx : 0;
+      this.branchFilter = this.branchTabs[this.selectedTabIndex]?.branchId ?? '';
+    }
+  }
+
+  /** Handles tab change: updates branch filter and reloads data. */
+  onTabChange(index: number): void {
+    this.selectedTabIndex = index;
+    this.branchFilter = this.branchTabs[index]?.branchId ?? '';
+    this.onBranchChange();
+  }
+
+  /** Whether operations (Adjust, Transfer, Sell) are allowed for this item. Admins can operate on any branch's item; others only when item's branch matches current branch context. */
+  canOperateOnItem(item: InventoryDto): boolean {
+    if (this.isAdmin) return true;
+    const currentBranch = this.branchContext.currentBranch;
+    return !!currentBranch && item.branchId === currentBranch.id;
+  }
+
+  getStatsContextLabel(): string {
+    if (!this.branchFilter) return 'All branches combined';
+    const branch = this.branches.find(b => b.id === this.branchFilter);
+    return branch?.name ?? 'Selected branch';
+  }
+
+  loadData(): void {
+    this.loadInventory();
     this.loadStats();
   }
 
   loadInventory(): void {
     this.loading = true;
-    this.inventoryService.loadInventory(true);
-    this.inventoryService.inventory$.subscribe(inventory => {
-      this.inventory = inventory;
-      this.applyFilters();
-      this.loading = false;
+    this.inventoryService.loadInventory(true, undefined);
+    this.inventoryService.inventory$.pipe(skip(1), take(1)).subscribe({
+      next: (inventory) => {
+        this.inventory = inventory;
+        this.applyFilters();
+        this.loading = false;
+      },
+      error: () => { this.loading = false; }
     });
   }
 
@@ -469,13 +506,19 @@ export class InventoryComponent implements OnInit {
     this.branchesService.loadBranches();
     this.branchesService.branches$.subscribe(branches => {
       this.branches = branches || [];
+      this.buildBranchTabs();
     });
   }
 
   loadStats(): void {
-    this.inventoryService.getInventoryStats().subscribe(stats => {
+    const branchId = this.branchFilter || undefined;
+    this.inventoryService.getInventoryStatsByBranch(branchId).subscribe(stats => {
       this.stats = stats;
     });
+  }
+
+  onBranchChange(): void {
+    this.loadData();
   }
 
   onSearch(): void {
@@ -500,22 +543,18 @@ export class InventoryComponent implements OnInit {
       filtered = filtered.filter(item => item.branchId === this.branchFilter);
     }
 
-    // Status filter
+    // Status filter: All, Low Stock, Out of Stock
     if (this.statusFilter) {
-      filtered = filtered.filter(item => {
-        switch (this.statusFilter) {
-          case 'low_stock':
-            return item.lowStockAlert;
-          case 'expiring':
-            return item.expiringAlert && !this.isExpired(item);
-          case 'expired':
-            return this.isExpired(item);
-          case 'normal':
-            return !item.lowStockAlert && !item.expiringAlert && !this.isExpired(item);
-          default:
-            return true;
-        }
-      });
+      switch (this.statusFilter) {
+        case 'low_stock':
+          filtered = filtered.filter(item => item.lowStockAlert);
+          break;
+        case 'out_of_stock':
+          filtered = filtered.filter(item => item.quantity === 0);
+          break;
+        default:
+          break;
+      }
     }
 
     this.filteredInventory = filtered;
@@ -523,13 +562,25 @@ export class InventoryComponent implements OnInit {
 
   clearFilters(): void {
     this.searchQuery = '';
-    this.branchFilter = '';
     this.statusFilter = '';
+    this.selectedTabIndex = 0;
+    this.branchFilter = this.branchTabs[0]?.branchId ?? '';
     this.applyFilters();
+    this.loadStats();
   }
 
-  refreshInventory(): void {
-    this.inventoryService.refreshInventory();
+  refreshInventory(branchId?: string): void {
+    const bid = branchId ?? (this.branchFilter || undefined);
+    this.loading = true;
+    this.inventoryService.refreshInventory(bid);
+    this.inventoryService.inventory$.pipe(skip(1), take(1)).subscribe({
+      next: (inventory) => {
+        this.inventory = inventory;
+        this.applyFilters();
+        this.loading = false;
+      },
+      error: () => { this.loading = false; }
+    });
     this.loadStats();
   }
 
@@ -561,7 +612,7 @@ export class InventoryComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.inventoryService.refreshInventory();
+        this.inventoryService.refreshInventory(this.branchFilter || undefined);
         this.loadStats();
         this.snackBar.open('Stock added successfully!', 'Close', { duration: 3000 });
       }
@@ -576,7 +627,7 @@ export class InventoryComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.inventoryService.refreshInventory();
+        this.inventoryService.refreshInventory(this.branchFilter || undefined);
         this.loadStats();
         this.snackBar.open('Stock adjusted successfully!', 'Close', { duration: 3000 });
       }
@@ -591,7 +642,7 @@ export class InventoryComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.inventoryService.refreshInventory();
+        this.inventoryService.refreshInventory(this.branchFilter || undefined);
         this.loadStats();
         this.snackBar.open('Inventory transferred successfully!', 'Close', { duration: 3000 });
       }
@@ -606,7 +657,7 @@ export class InventoryComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.inventoryService.refreshInventory();
+        this.inventoryService.refreshInventory(this.branchFilter || undefined);
         this.loadStats();
         this.snackBar.open('Stock adjusted successfully!', 'Close', { duration: 3000 });
       }
@@ -621,7 +672,7 @@ export class InventoryComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.inventoryService.refreshInventory();
+        this.inventoryService.refreshInventory(this.branchFilter || undefined);
         this.loadStats();
         this.snackBar.open('Inventory transferred successfully!', 'Close', { duration: 3000 });
       }
@@ -636,7 +687,7 @@ export class InventoryComponent implements OnInit {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.inventoryService.refreshInventory();
+        this.inventoryService.refreshInventory(this.branchFilter || undefined);
         this.loadStats();
       }
     });
@@ -645,5 +696,25 @@ export class InventoryComponent implements OnInit {
   viewItemDetails(item: InventoryDto): void {
     // TODO: Implement item details dialog
     this.snackBar.open('Item details coming soon!', 'Close', { duration: 2000 });
+  }
+
+  sellItem(item: InventoryDto): void {
+    if (!this.canOperateOnItem(item) || item.quantity <= 0) return;
+    this.posPrefillService.setPrefillItem(item);
+    this.router.navigate(['/pos']);
+  }
+
+  viewTransferHistory(): void {
+    const dialogRef = this.dialog.open(InventoryTransferHistoryDialogComponent, {
+      width: 'min(95vw, 1200px)',
+      maxWidth: '1200px',
+      data: { branches: this.branches }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.refreshInventory(this.branchFilter || undefined);
+      }
+    });
   }
 }

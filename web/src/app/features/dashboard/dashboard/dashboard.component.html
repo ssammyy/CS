@@ -1,14 +1,14 @@
-<div class="min-h-screen bg-gray-50 p-6">
+<div class="min-h-screen bg-gray-50 p-3 sm:p-4 md:p-6">
   <!-- Header -->
-  <div class="mb-6">
-  <div class="flex items-center justify-between">
+  <div class="mb-4 sm:mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p class="text-gray-600 mt-1">Welcome back, {{ username() }}</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p class="text-sm sm:text-base text-gray-600 mt-1">Welcome back, {{ username() }}</p>
       </div>
-      <div class="flex items-center gap-3">
-        <!-- Branch Selector -->
-        <div class="flex items-center gap-2">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <!-- Branch Selector (Admin Only) -->
+        <div *ngIf="isAdmin()" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <label class="inline-flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -17,7 +17,7 @@
               class="w-4 h-4 text-brand-sky border-gray-300 rounded focus:ring-brand-sky">
             <span class="text-sm font-medium text-gray-700">All Branches</span>
           </label>
-          <mat-form-field *ngIf="!showAllBranches()" class="!w-48">
+          <mat-form-field *ngIf="!showAllBranches()" class="!w-full sm:!w-48">
             <mat-label>Select Branch</mat-label>
             <mat-select [(ngModel)]="selectedBranchId" (selectionChange)="onBranchChange()">
               <mat-option *ngFor="let branch of branches()" [value]="branch.id">
@@ -26,16 +26,6 @@
             </mat-select>
           </mat-form-field>
         </div>
-
-        <!-- Refresh Button -->
-        <button
-          mat-stroked-button
-          (click)="refreshDashboard()"
-          [disabled]="loading()"
-          class="!py-2">
-          <mat-icon>refresh</mat-icon>
-          Refresh
-        </button>
       </div>
     </div>
   </div>
@@ -45,40 +35,148 @@
     <mat-spinner diameter="50"></mat-spinner>
   </div>
 
+  <!-- Onboarding Info Bites (Admin Only) -->
+  <app-onboarding-bites *ngIf="!loading() && isAdmin()"></app-onboarding-bites>
+
+  <!-- Quick Actions Navigation -->
+  <div *ngIf="!loading()" class="mb-4 sm:mb-6">
+    <div class="bg-white rounded-lg shadow p-3 sm:p-4">
+      <div class="flex items-center gap-2 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide sm:overflow-x-visible sm:pb-0 sm:mx-0 sm:px-0" style="scrollbar-width: none; -ms-overflow-style: none;">
+        <div class="flex items-center gap-2 flex-nowrap min-w-max sm:flex-wrap sm:min-w-0">
+        <!-- Make Sale / POS -->
+        <a
+          routerLink="/pos"
+          routerLinkActive="bg-brand-coral/20 border-brand-coral"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-coral/10 hover:border-brand-coral transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-coral text-base">point_of_sale</mat-icon>
+          <span class="font-medium text-gray-900 e">Make Sale</span>
+        </a>
+
+        <!-- View Sales -->
+        <a
+          routerLink="/sales"
+          routerLinkActive="bg-brand-sky/20 border-brand-sky"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-sky/10 hover:border-brand-sky transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-sky text-base">receipt_long</mat-icon>
+          <span class="font-medium text-gray-900">Sales</span>
+        </a>
+
+        <!-- Manage Inventory -->
+        <a
+          routerLink="/inventory"
+          routerLinkActive="bg-brand-mint/20 border-brand-mint"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-mint/20 hover:border-brand-mint transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-mint text-base">warehouse</mat-icon>
+          <span class="font-medium text-gray-900">Inventory</span>
+        </a>
+
+        <!-- Manage Products -->
+        <a
+          *ngIf="isAdmin()"
+          routerLink="/products"
+          routerLinkActive="bg-brand-sky/20 border-brand-sky"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-sky/10 hover:border-brand-sky transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-sky text-base">inventory</mat-icon>
+          <span class="font-medium text-gray-900">Products</span>
+        </a>
+
+        <!-- Manage Customers -->
+        <a
+          routerLink="/customers"
+          routerLinkActive="bg-brand-mint/20 border-brand-mint"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-mint/20 hover:border-brand-mint transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-mint text-base">people</mat-icon>
+          <span class="font-medium text-gray-900">Customers</span>
+        </a>
+
+        <!-- Credit Management -->
+        <a
+          routerLink="/credit-management"
+          routerLinkActive="bg-brand-coral/20 border-brand-coral"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-coral/10 hover:border-brand-coral transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-coral text-base">account_balance_wallet</mat-icon>
+          <span class="font-medium text-gray-900">Credit</span>
+        </a>
+
+        <!-- View Reports -->
+        <a
+        *ngIf="isAdmin()"
+          routerLink="/reports"
+          routerLinkActive="bg-brand-sky/20 border-brand-sky"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-sky/10 hover:border-brand-sky transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-sky text-base">analytics</mat-icon>
+          <span class="font-medium text-gray-900">Reports</span>
+        </a>
+
+        <!-- Manage Branches (Admin Only) -->
+        <a
+          *ngIf="isAdmin()"
+          routerLink="/branches"
+          routerLinkActive="bg-brand-sky/20 border-brand-sky"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-sky/10 hover:border-brand-sky transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-sky text-base">store</mat-icon>
+          <span class="font-medium text-gray-900">Branches</span>
+        </a>
+
+        <!-- Manage Users (Admin Only) -->
+        <a
+          *ngIf="isAdmin()"
+          routerLink="/users"
+          routerLinkActive="bg-brand-sky/20 border-brand-sky"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-sky/10 hover:border-brand-sky transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-sky text-base">group</mat-icon>
+          <span class="font-medium text-gray-900">Users</span>
+        </a>
+
+        <!-- Purchase Orders (Admin Only) -->
+        <a
+          *ngIf="isAdmin()"
+          routerLink="/purchase-orders"
+          routerLinkActive="bg-brand-mint/20 border-brand-mint"
+          class="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md border border-gray-200 hover:bg-brand-mint/20 hover:border-brand-mint transition cursor-pointer text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+          <mat-icon class="text-brand-mint text-base">shopping_cart</mat-icon>
+          <span class="font-medium text-gray-900 hidden sm:inline">Purchase Orders</span>
+          <span class="font-medium text-gray-900 sm:hidden">PO</span>
+        </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Dashboard Content -->
   <div *ngIf="!loading() && stats()" class="space-y-6">
 
     <!-- Sales Stats Cards -->
     <div>
-      <h2 class="text-xl font-semibold text-gray-900 mb-4">Sales Overview</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <h2 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
+        {{ isCashierOrManager() ? 'Your Earnings' : 'Sales Overview' }}
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <!-- Today -->
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-brand-sky cursor-help relative group hover:shadow-lg transition-shadow">
+        <div class="bg-white rounded-lg shadow p-4 sm:p-6 border-l-4 border-brand-sky cursor-help relative group hover:shadow-lg transition-shadow">
           <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-600">Today's Sales</p>
-              <p class="text-2xl font-bold text-gray-900 mt-1">{{ formatCurrency(stats()!.salesStats.totalSalesToday) }}</p>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs sm:text-sm font-medium text-gray-600">{{ isCashierOrManager() ? "Today's Earnings" : "Today's Sales" }}</p>
+              <p class="text-xl sm:text-2xl font-bold text-gray-900 mt-1 truncate">
+                {{ isCashierOrManager() ? formatCurrency(stats()!.salesStats.cashierEarningsToday ?? 0) : formatCurrency(stats()!.salesStats.totalSalesToday) }}
+              </p>
               <p class="text-xs text-gray-500 mt-1">{{ stats()!.salesStats.salesCountToday }} transactions</p>
             </div>
-            <div class="p-3 bg-brand-sky/10 rounded-lg">
-              <mat-icon class="text-brand-sky">today</mat-icon>
+            <div class="p-2 sm:p-3 bg-brand-sky/10 rounded-lg flex-shrink-0 ml-2">
+              <mat-icon class="text-brand-sky text-lg sm:text-base">today</mat-icon>
             </div>
           </div>
-          <!-- Tooltip on hover -->
           <div class="absolute left-0 top-full mt-2 w-full bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
             <div class="space-y-1">
-              <div class="flex justify-between">
-                <span>Total Revenue:</span>
-                <span class="text-brand-sky font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesToday) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>Transactions:</span>
-                <span class="text-brand-sky font-semibold">{{ stats()!.salesStats.salesCountToday }}</span>
-              </div>
-              <div *ngIf="stats()!.salesStats.salesCountToday > 0" class="flex justify-between border-t border-gray-700 pt-1 mt-1">
-                <span>Avg/Transaction:</span>
-                <span class="text-brand-sky font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesToday / stats()!.salesStats.salesCountToday) }}</span>
-              </div>
+              <ng-container *ngIf="isCashierOrManager(); else todaySalesTooltip">
+                <div class="flex justify-between"><span>Your commission:</span><span class="text-brand-sky font-semibold">{{ formatCurrency(stats()!.salesStats.cashierEarningsToday ?? 0) }}</span></div>
+                <div class="flex justify-between"><span>Transactions:</span><span class="text-brand-sky font-semibold">{{ stats()!.salesStats.salesCountToday }}</span></div>
+              </ng-container>
+              <ng-template #todaySalesTooltip>
+                <div class="flex justify-between"><span>Total Revenue:</span><span class="text-brand-sky font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesToday) }}</span></div>
+                <div class="flex justify-between"><span>Transactions:</span><span class="text-brand-sky font-semibold">{{ stats()!.salesStats.salesCountToday }}</span></div>
+                <div *ngIf="stats()!.salesStats.salesCountToday > 0" class="flex justify-between border-t border-gray-700 pt-1 mt-1"><span>Avg/Transaction:</span><span class="text-brand-sky font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesToday / stats()!.salesStats.salesCountToday) }}</span></div>
+              </ng-template>
             </div>
           </div>
         </div>
@@ -87,29 +185,25 @@
         <div class="bg-white rounded-lg shadow p-6 border-l-4 border-brand-mint cursor-help relative group hover:shadow-lg transition-shadow">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">This Week</p>
-              <p class="text-2xl font-bold text-gray-900 mt-1">{{ formatCurrency(stats()!.salesStats.totalSalesThisWeek) }}</p>
+              <p class="text-sm font-medium text-gray-600">{{ isCashierOrManager() ? "This Week's Earnings" : "This Week" }}</p>
+              <p class="text-2xl font-bold text-gray-900 mt-1">{{ isCashierOrManager() ? formatCurrency(stats()!.salesStats.cashierEarningsThisWeek ?? 0) : formatCurrency(stats()!.salesStats.totalSalesThisWeek) }}</p>
               <p class="text-xs text-gray-500 mt-1">{{ stats()!.salesStats.salesCountThisWeek }} transactions</p>
             </div>
             <div class="p-3 bg-brand-mint/10 rounded-lg">
               <mat-icon class="text-brand-mint">calendar_today</mat-icon>
             </div>
           </div>
-          <!-- Tooltip on hover -->
           <div class="absolute left-0 top-full mt-2 w-full bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
             <div class="space-y-1">
-              <div class="flex justify-between">
-                <span>Total Revenue:</span>
-                <span class="text-brand-mint font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesThisWeek) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>Transactions:</span>
-                <span class="text-brand-mint font-semibold">{{ stats()!.salesStats.salesCountThisWeek }}</span>
-              </div>
-              <div *ngIf="stats()!.salesStats.salesCountThisWeek > 0" class="flex justify-between border-t border-gray-700 pt-1 mt-1">
-                <span>Avg/Transaction:</span>
-                <span class="text-brand-mint font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesThisWeek / stats()!.salesStats.salesCountThisWeek) }}</span>
-              </div>
+              <ng-container *ngIf="isCashierOrManager(); else weekSalesTooltip">
+                <div class="flex justify-between"><span>Your commission:</span><span class="text-brand-mint font-semibold">{{ formatCurrency(stats()!.salesStats.cashierEarningsThisWeek ?? 0) }}</span></div>
+                <div class="flex justify-between"><span>Transactions:</span><span class="text-brand-mint font-semibold">{{ stats()!.salesStats.salesCountThisWeek }}</span></div>
+              </ng-container>
+              <ng-template #weekSalesTooltip>
+                <div class="flex justify-between"><span>Total Revenue:</span><span class="text-brand-mint font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesThisWeek) }}</span></div>
+                <div class="flex justify-between"><span>Transactions:</span><span class="text-brand-mint font-semibold">{{ stats()!.salesStats.salesCountThisWeek }}</span></div>
+                <div *ngIf="stats()!.salesStats.salesCountThisWeek > 0" class="flex justify-between border-t border-gray-700 pt-1 mt-1"><span>Avg/Transaction:</span><span class="text-brand-mint font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesThisWeek / stats()!.salesStats.salesCountThisWeek) }}</span></div>
+              </ng-template>
             </div>
           </div>
         </div>
@@ -118,86 +212,147 @@
         <div class="bg-white rounded-lg shadow p-6 border-l-4 border-brand-coral cursor-help relative group hover:shadow-lg transition-shadow">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">This Month</p>
-              <p class="text-2xl font-bold text-gray-900 mt-1">{{ formatCurrency(stats()!.salesStats.totalSalesThisMonth) }}</p>
-              <p class="text-xs text-gray-500 mt-1">{{ stats()!.salesStats.salesCountThisMonth}} transactions</p>
+              <p class="text-sm font-medium text-gray-600">{{ isCashierOrManager() ? "This Month's Earnings" : "This Month" }}</p>
+              <p class="text-2xl font-bold text-gray-900 mt-1">{{ isCashierOrManager() ? formatCurrency(stats()!.salesStats.cashierEarningsThisMonth ?? 0) : formatCurrency(stats()!.salesStats.totalSalesThisMonth) }}</p>
+              <p class="text-xs text-gray-500 mt-1">{{ stats()!.salesStats.salesCountThisMonth }} transactions</p>
             </div>
             <div class="p-3 bg-brand-coral/10 rounded-lg">
               <mat-icon class="text-brand-coral">calendar_month</mat-icon>
             </div>
           </div>
-          <!-- Tooltip on hover -->
           <div class="absolute left-0 top-full mt-2 w-full bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
             <div class="space-y-1">
-              <div class="flex justify-between">
-                <span>Total Revenue:</span>
-                <span class="text-brand-coral font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesThisMonth) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>Transactions:</span>
-                <span class="text-brand-coral font-semibold">{{ stats()!.salesStats.salesCountThisMonth }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span>Average Sale:</span>
-                <span class="text-brand-coral font-semibold">{{ formatCurrency(stats()!.salesStats.averageSaleValue) }}</span>
-              </div>
+              <ng-container *ngIf="isCashierOrManager(); else monthSalesTooltip">
+                <div class="flex justify-between"><span>Your commission:</span><span class="text-brand-coral font-semibold">{{ formatCurrency(stats()!.salesStats.cashierEarningsThisMonth ?? 0) }}</span></div>
+                <div class="flex justify-between"><span>Transactions:</span><span class="text-brand-coral font-semibold">{{ stats()!.salesStats.salesCountThisMonth }}</span></div>
+              </ng-container>
+              <ng-template #monthSalesTooltip>
+                <div class="flex justify-between"><span>Total Revenue:</span><span class="text-brand-coral font-semibold">{{ formatCurrency(stats()!.salesStats.totalSalesThisMonth) }}</span></div>
+                <div class="flex justify-between"><span>Transactions:</span><span class="text-brand-coral font-semibold">{{ stats()!.salesStats.salesCountThisMonth }}</span></div>
+                <div class="flex justify-between"><span>Average Sale:</span><span class="text-brand-coral font-semibold">{{ formatCurrency(stats()!.salesStats.averageSaleValue) }}</span></div>
+              </ng-template>
             </div>
           </div>
         </div>
 
-        <!-- Average Sale -->
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500 cursor-help relative group hover:shadow-lg transition-shadow">
+        <!-- This Year (cashier/manager) or Average Sale (admin) -->
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500 cursor-help relative group hover:shadow-lg transition-shadow" [class.border-emerald-600]="isCashierOrManager()" [class.border-purple-500]="!isCashierOrManager()">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-sm font-medium text-gray-600">Average Sale</p>
-              <p class="text-2xl font-bold text-gray-900 mt-1">{{ formatCurrency(stats()!.salesStats.averageSaleValue) }}</p>
-              <p class="text-xs text-gray-500 mt-1">This month</p>
+              <p class="text-sm font-medium text-gray-600">{{ isCashierOrManager() ? "This Year's Earnings" : "Average Sale" }}</p>
+              <p class="text-2xl font-bold text-gray-900 mt-1">{{ isCashierOrManager() ? formatCurrency(stats()!.salesStats.cashierEarningsThisYear ?? 0) : formatCurrency(stats()!.salesStats.averageSaleValue) }}</p>
+              <p class="text-xs text-gray-500 mt-1">{{ isCashierOrManager() ? '15% of profit' : 'This month' }}</p>
             </div>
-            <div class="p-3 bg-purple-500/10 rounded-lg">
-              <mat-icon class="text-purple-500">trending_up</mat-icon>
+            <div class="p-3 rounded-lg" [class.bg-emerald-500]="isCashierOrManager()" [class.bg-purple-500]="!isCashierOrManager()">
+              <mat-icon [class.text-emerald-600]="isCashierOrManager()" [class.text-purple-500]="!isCashierOrManager()">trending_up</mat-icon>
             </div>
           </div>
-          <!-- Tooltip on hover -->
           <div class="absolute left-0 top-full mt-2 w-full bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
             <div class="space-y-1">
-              <div class="flex justify-between">
-                <span>This Month:</span>
-                <span class="text-purple-300 font-semibold">{{ formatCurrency(stats()!.salesStats.averageSaleValue) }}</span>
-              </div>
-              <div class="flex justify-between text-[10px] text-gray-400 pt-1">
-                <span>Based on {{ stats()!.salesStats.salesCountThisMonth }} transactions</span>
-              </div>
+              <ng-container *ngIf="isCashierOrManager(); else avgSaleTooltip">
+                <div class="flex justify-between"><span>Your commission (YTD):</span><span class="font-semibold text-emerald-400">{{ formatCurrency(stats()!.salesStats.cashierEarningsThisYear ?? 0) }}</span></div>
+                <div class="flex justify-between text-[10px] text-gray-400 pt-1"><span>15% of profit on each item</span></div>
+              </ng-container>
+              <ng-template #avgSaleTooltip>
+                <div class="flex justify-between"><span>This Month:</span><span class="text-purple-300 font-semibold">{{ formatCurrency(stats()!.salesStats.averageSaleValue) }}</span></div>
+                <div class="flex justify-between text-[10px] text-gray-400 pt-1"><span>Based on {{ stats()!.salesStats.salesCountThisMonth }} transactions</span></div>
+              </ng-template>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="bg-gradient-to-r from-brand-sky/10 to-brand-mint/10 rounded-lg  p-4 border border-brand-sky/20 transition-shadow cursor-pointer" (click)="navigateToReports()">
-      <div class="flex items-center justify-between">
-        <div>
-          <h3 class="text-2xl font-bold text-gray-900 mb-2">Comprehensive Reports</h3>
-          <p class="text-gray-600 ">
+
+    <div *ngIf="isAdmin()" class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <!-- Daily Revenue Chart -->
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+          <mat-icon class="text-brand-sky text-lg sm:text-base">show_chart</mat-icon>
+          <span class="text-sm sm:text-base">Daily Revenue (Last 30 Days)</span>
+        </h3>
+        <div class="h-64 sm:h-80 overflow-x-auto">
+          <ngx-charts-line-chart
+            [results]="[{name: 'Revenue', series: dailyRevenueChart()}]"
+            [xAxis]="true"
+            [yAxis]="true"
+            [showXAxisLabel]="true"
+            [showYAxisLabel]="true"
+            [xAxisLabel]="'Date'"
+            [yAxisLabel]="'Revenue (KES)'"
+            [scheme]="colorScheme">
+          </ngx-charts-line-chart>
+        </div>
+      </div>
+
+      <!-- Payment Method Distribution -->
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+          <mat-icon class="text-brand-sky text-lg sm:text-base">bar_chart</mat-icon>
+          <span class="text-sm sm:text-base">Monthly Revenue Trend</span>
+        </h3>
+        <div class="h-80 sm:h-96 overflow-x-auto">
+          <ngx-charts-bar-vertical
+            [results]="monthlyRevenueChart()"
+            [xAxis]="true"
+            [yAxis]="true"
+            [showXAxisLabel]="true"
+            [showYAxisLabel]="true"
+            [xAxisLabel]="'Month'"
+            [yAxisLabel]="'Revenue (KES)'"
+            [scheme]="colorScheme">
+          </ngx-charts-bar-vertical>
+        </div>
+      </div>
+
+    </div>
+    <!-- Comprehensive Reports Section (Admin Only) -->
+    <div *ngIf="isAdmin()" class="bg-gradient-to-r from-brand-sky/10 to-brand-mint/10 rounded-lg p-4 sm:p-6 border border-brand-sky/20 transition-shadow cursor-pointer" (click)="navigateToReports()">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex-1">
+          <h3 class="text-xl sm:text-xl font-bold text-gray-900 mb-2">Comprehensive Reports</h3>
+          <p class="text-sm sm:text-base text-gray-600">
             View detailed reports on sales and inventory to make informed business decisions.
           </p>
         </div>
-        <div class="flex-shrink-0 flex items-center gap-4">
-
+        <div class="flex-shrink-0 w-full sm:w-auto">
           <button
             mat-raised-button
-            class="!bg-brand-sky hover:!bg-brand-sky/90 !text-white !rounded-lg"
+            class="!bg-brand-sky hover:!bg-brand-sky/90 !text-white !rounded-lg w-full sm:w-auto"
             (click)="navigateToReports()">
             <mat-icon>arrow_forward</mat-icon>
-            View Reports
+            <span class="hidden sm:inline">View Reports</span>
+            <span class="sm:hidden">Reports</span>
           </button>
+        </div>
+      </div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+      <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+        <mat-icon class="text-brand-sky text-lg sm:text-base">receipt</mat-icon>
+        <span class="text-sm sm:text-base">{{ isCashierOrManager() ? 'Your Recent Sales' : 'Recent Sales' }}</span>
+      </h3>
+      <div class="space-y-2">
+        <div *ngFor="let sale of stats()!.recentSales" class="flex justify-between items-start gap-3 p-3 hover:bg-gray-50 rounded-lg">
+          <div class="min-w-0 flex-1">
+            <div class="font-medium text-gray-900 truncate" [title]="sale.lineItemsSummary || sale.saleNumber">{{ sale.lineItemsSummary || sale.saleNumber }}</div>
+            <div class="text-xs text-gray-500 mt-0.5">{{ sale.saleNumber }} · {{ sale.customerName }}</div>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <div class="font-semibold text-gray-900">{{ formatCurrency(sale.totalAmount) }}</div>
+            <div class="text-xs text-gray-500">{{ sale.saleDate | date:'short' }}</div>
+          </div>
+        </div>
+        <div *ngIf="stats()!.recentSales.length === 0" class="text-center py-8 text-gray-400">
+          No recent sales
         </div>
       </div>
     </div>
 
 
     <!-- Inventory & Credit Stats (moved above charts) -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
       <!-- Inventory Stats -->
-      <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+      <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-100 hover:shadow-md transition-shadow">
         <div class="flex items-center justify-between mb-6">
           <h3 class="text-lg font-semibold text-gray-900">Inventory Status</h3>
           <div class="p-2 bg-brand-mint/10 rounded-lg">
@@ -211,9 +366,15 @@
             <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Total Products</p>
             <p class="text-2xl font-bold text-gray-900 mt-2">{{ stats()!.inventoryStats.totalProducts }}</p>
           </div>
-          <div class="bg-gradient-to-br from-gray-50 to-white rounded-lg p-4 border border-gray-100">
+          <!-- Stock Value (Admin Only) -->
+          <div *ngIf="isAdmin()" class="bg-gradient-to-br from-gray-50 to-white rounded-lg p-4 border border-gray-100">
             <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Stock Value</p>
             <p class="text-2xl font-bold text-gray-900 mt-2">{{ formatCurrency(stats()!.inventoryStats.totalStockValue) | slice:0:7 }}<span class="text-sm">k</span></p>
+          </div>
+          <!-- Low Stock Count (Non-Admin) -->
+          <div *ngIf="!isAdmin()" class="bg-gradient-to-br from-gray-50 to-white rounded-lg p-4 border border-gray-100">
+            <p class="text-xs font-medium text-gray-600 uppercase tracking-wide">Low Stock Items</p>
+            <p class="text-2xl font-bold text-gray-900 mt-2">{{ stats()!.inventoryStats.lowStockCount }}</p>
           </div>
         </div>
 
@@ -259,26 +420,16 @@
           </div>
 
           <!-- Expiring Soon -->
-          <div class="flex items-center justify-between p-4 rounded-lg bg-yellow-50 border border-yellow-100">
-            <div class="flex items-center gap-3">
-              <div class="p-2 bg-yellow-100 rounded-lg">
-                <mat-icon class="text-yellow-600 !text-xl">schedule</mat-icon>
-              </div>
-              <div>
-                <p class="text-xs font-medium text-yellow-700 uppercase tracking-wide">Expiring Soon</p>
-                <p class="text-lg font-bold text-yellow-900 mt-0.5">{{ stats()!.inventoryStats.expiringWithin30Days }}</p>
-              </div>
-            </div>
-          </div>
+
         </div>
       </div>
 
       <!-- Credit Stats -->
-      <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-        <div class="flex items-center justify-between mb-6">
-          <h3 class="text-lg font-semibold text-gray-900">Credit Accounts</h3>
+      <div class="bg-white rounded-lg shadow-sm p-4 sm:p-6 border border-gray-100 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between mb-4 sm:mb-6">
+          <h3 class="text-base sm:text-lg font-semibold text-gray-900">Credit Accounts</h3>
           <div class="p-2 bg-brand-coral/10 rounded-lg">
-            <mat-icon class="text-brand-coral !text-2xl">credit_card</mat-icon>
+            <mat-icon class="text-brand-coral !text-xl sm:!text-2xl">credit_card</mat-icon>
           </div>
         </div>
 
@@ -359,82 +510,20 @@
     </div>
 
 
-    <!-- Charts Row -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Daily Revenue Chart -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <mat-icon class="text-brand-sky">show_chart</mat-icon>
-          Daily Revenue (Last 30 Days)
-        </h3>
-        <div class="h-80">
-          <ngx-charts-line-chart
-            [results]="[{name: 'Revenue', series: dailyRevenueChart()}]"
-            [xAxis]="true"
-            [yAxis]="true"
-            [showXAxisLabel]="true"
-            [showYAxisLabel]="true"
-            [xAxisLabel]="'Date'"
-            [yAxisLabel]="'Revenue (KES)'"
-            [scheme]="colorScheme">
-          </ngx-charts-line-chart>
-        </div>
-      </div>
 
-      <!-- Payment Method Distribution -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <mat-icon class="text-brand-sky">bar_chart</mat-icon>
-          Monthly Revenue Trend
-        </h3>
-        <div class="h-96">
-          <ngx-charts-bar-vertical
-            [results]="monthlyRevenueChart()"
-            [xAxis]="true"
-            [yAxis]="true"
-            [showXAxisLabel]="true"
-            [showYAxisLabel]="true"
-            [xAxisLabel]="'Month'"
-            [yAxisLabel]="'Revenue (KES)'"
-            [scheme]="colorScheme">
-          </ngx-charts-bar-vertical>
-        </div>
-      </div>
+    <!-- Charts Row (Admin Only) -->
 
-    </div>
-
-    <!-- Monthly Revenue Trend -->
 
     <!-- Recent Sales & Low Stock -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       <!-- Recent Sales -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <mat-icon class="text-brand-sky">receipt</mat-icon>
-          Recent Sales
-        </h3>
-        <div class="space-y-2">
-          <div *ngFor="let sale of stats()!.recentSales" class="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg">
-            <div>
-              <div class="font-medium text-gray-900">{{ sale.saleNumber }}</div>
-              <div class="text-sm text-gray-500">{{ sale.customerName }}</div>
-            </div>
-            <div class="text-right">
-              <div class="font-semibold text-gray-900">{{ formatCurrency(sale.totalAmount) }}</div>
-              <div class="text-xs text-gray-500">{{ sale.saleDate | date:'short' }}</div>
-            </div>
-          </div>
-          <div *ngIf="stats()!.recentSales.length === 0" class="text-center py-8 text-gray-400">
-            No recent sales
-          </div>
-        </div>
-      </div>
+
 
       <!-- Low Stock Alerts -->
-      <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <mat-icon class="text-orange-500">warning</mat-icon>
-          Low Stock Alerts
+      <div class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+          <mat-icon class="text-orange-500 text-lg sm:text-base">warning</mat-icon>
+          <span class="text-sm sm:text-base">Low Stock Alerts</span>
         </h3>
         <div class="space-y-2">
           <div *ngFor="let product of stats()!.lowStockProducts" class="flex justify-between items-center p-3 bg-orange-50 rounded-lg">

@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -11,6 +11,7 @@ import { NgxChartsModule } from '@swimlane/ngx-charts';
 import { DashboardService, DashboardStats } from '../../../core/services/dashboard.service';
 import { BranchesService, BranchDto } from '../../../core/services/branches.service';
 import { BranchContextService } from '../../../core/services/branch-context.service';
+import { OnboardingBitesComponent } from '../onboarding-bites/onboarding-bites.component';
 
 interface StoredUser {
   id: string;
@@ -28,11 +29,14 @@ interface StoredUser {
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
+    RouterLinkActive,
     MatIconModule,
     MatSelectModule,
     MatProgressSpinnerModule,
     MatButtonModule,
-    NgxChartsModule
+    NgxChartsModule,
+    OnboardingBitesComponent
   ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
@@ -73,6 +77,16 @@ export class DashboardComponent implements OnInit {
   readonly tenantName = computed(() => this.user()?.tenantName ?? 'Unknown Tenant');
   readonly tenantId = computed(() => this.user()?.tenantId ?? '—');
   readonly username = computed(() => this.user()?.username ?? '');
+  readonly isAdmin = computed(() => {
+    const role = this.user()?.role;
+    return role === 'ADMIN' || role === 'PLATFORM_ADMIN';
+  });
+
+  /** CASHIER or MANAGER - dashboard shows their personal sales stats */
+  readonly isCashierOrManager = computed(() => {
+    const role = this.user()?.role;
+    return role === 'CASHIER' || role === 'MANAGER';
+  });
 
   /**
    * Load branches
@@ -86,10 +100,14 @@ export class DashboardComponent implements OnInit {
 
   /**
    * Load dashboard statistics
+   * For non-admin users, branch selection is handled by the backend
    */
   loadDashboardStats(): void {
     this.loading.set(true);
-    const branchId = this.showAllBranches() ? undefined : this.selectedBranchId() || undefined;
+    // Only admins can select branches or view all branches
+    const branchId = this.isAdmin() 
+      ? (this.showAllBranches() ? undefined : this.selectedBranchId() || undefined)
+      : undefined; // Backend will auto-select branch for cashiers
 
     this.dashboardService.getDashboardStats(branchId).subscribe({
       next: (stats) => {
@@ -141,9 +159,10 @@ export class DashboardComponent implements OnInit {
   }
 
   /**
-   * Toggle show all branches
+   * Toggle show all branches (Admin only)
    */
   toggleAllBranches(): void {
+    if (!this.isAdmin()) return; // Only admins can toggle
     this.showAllBranches.update(v => !v);
     if (this.showAllBranches()) {
       this.selectedBranchId.set(null);

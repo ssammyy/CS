@@ -2,11 +2,19 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet, Router } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatBottomSheet, MatBottomSheetModule } from '@angular/material/bottom-sheet';
 import { AuthService } from '../../core/services/auth.service';
 import { BranchContextService } from '../../core/services/branch-context.service';
 import { BranchesService, BranchDto } from '../../core/services/branches.service';
 import { BranchSelectorComponent } from './branch-selector.component';
 import { UserBranchPreferenceService } from '../../core/services/user-branch-preference.service';
+import { UserProfileComponent } from './user-profile.component';
+import { SaleEditRequestService } from '../../core/services/sale-edit-request.service';
+import { ExpensesService } from '../../core/services/expenses.service';
+import { NotificationBottomSheetComponent } from './notification-bottom-sheet.component';
+import { environment } from '../../../environments/environment';
 
 /**
  * Main shell component that provides the application layout and navigation.
@@ -15,7 +23,7 @@ import { UserBranchPreferenceService } from '../../core/services/user-branch-pre
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, MatIconModule, BranchSelectorComponent],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, MatIconModule, MatButtonModule, MatTooltipModule, MatBottomSheetModule, BranchSelectorComponent, UserProfileComponent],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss'
 })
@@ -25,8 +33,29 @@ export class ShellComponent implements OnInit {
   readonly isCollapsed = signal(true);
   toggleSidebar(): void { this.sidebarOpen.update(v => !v); }
   closeSidebar(): void { this.sidebarOpen.set(false); }
-  // Add these methods
 
+  expandSidebar(): void { this.isCollapsed.set(false); }
+  collapseSidebar(): void { this.isCollapsed.set(true); }
+
+  /** Opens the notification center as a Material bottom sheet. */
+  openNotificationSheet(): void {
+    this.bottomSheet.open(NotificationBottomSheetComponent, {
+      data: { isAdmin: this.isAdmin },
+      panelClass: 'notification-bottom-sheet-panel',
+      disableClose: false,
+      autoFocus: 'first-tabbable',
+      restoreFocus: true
+    }).afterDismissed().subscribe(() => {
+      this.saleEditRequestService.getPendingCount().subscribe(c => this.saleEditPendingCount.set(c));
+      if (this.isAdmin) this.expensesService.getPendingCount().subscribe(c => this.expensePendingCount.set(c));
+    });
+  }
+
+  /** Total count for notification badge (sale edit pending + expense pending). */
+  notificationBadgeCount(): number {
+    if (this.isAdmin) return this.saleEditPendingCount() + this.expensePendingCount();
+    return 0;
+  }
 
   get year(): number { return new Date().getFullYear(); }
 
@@ -35,14 +64,42 @@ export class ShellComponent implements OnInit {
   private readonly branchContextService = inject(BranchContextService);
   private readonly branchesService = inject(BranchesService);
   private readonly userBranchPreferenceService = inject(UserBranchPreferenceService);
-  expandSidebar(): void { this.isCollapsed.set(false); }
-  collapseSidebar(): void { this.isCollapsed.set(true); }
+
+  readonly aiAdvisorEnabled = environment.aiAdvisorEnabled;
+
+  private readonly saleEditRequestService = inject(SaleEditRequestService);
+  private readonly expensesService = inject(ExpensesService);
+  private readonly bottomSheet = inject(MatBottomSheet);
+
+  readonly saleEditPendingCount = signal(0);
+  readonly expensePendingCount = signal(0);
 
   isAdmin = (() => { try { const role = JSON.parse(localStorage.getItem('auth_user') || '{}')?.role; return role === 'ADMIN' || role === 'PLATFORM_ADMIN'; } catch { return false; } })();
+  isCashier = (() => { try { const role = JSON.parse(localStorage.getItem('auth_user') || '{}')?.role; return role === 'CASHIER'; } catch { return false; } })();
+  /** ADMIN, PLATFORM_ADMIN, or MANAGER can access Branches */
+  canAccessBranches = (() => { try { const role = JSON.parse(localStorage.getItem('auth_user') || '{}')?.role; return role === 'ADMIN' || role === 'PLATFORM_ADMIN' || role === 'MANAGER'; } catch { return false; } })();
   availableBranches: BranchDto[] = [];
+  currentBranch = signal<BranchDto | null>(null);
+  /** True when user (CASHIER/MANAGER) has no branch assignment - blocks navigation */
+  readonly hasNoBranchAssignment = signal(false);
+  /** True when branch assignment check is still in progress */
+  readonly branchCheckComplete = signal(false);
+  /** Ensure we only run branch restore once to avoid re-entry/cascade when branches$ emits again (e.g. from Reports). */
+  private initialBranchRestoreDone = false;
 
   ngOnInit(): void {
-    this.loadUserBranches();
+    this.checkBranchAssignment();
+    this.saleEditRequestService.pendingCount$.subscribe(c => this.saleEditPendingCount.set(c));
+    this.expensesService.pendingCount$.subscribe(c => this.expensePendingCount.set(c));
+    if (this.isAdmin) {
+      this.saleEditRequestService.getPendingCount().subscribe();
+      this.expensesService.getPendingCount().subscribe();
+    }
+
+    // Subscribe to current branch changes
+    this.branchContextService.currentBranch$.subscribe(branch => {
+      this.currentBranch.set(branch);
+    });
 
     // Check for tenant changes by monitoring auth_user in localStorage
     this.checkTenantChange();
@@ -58,6 +115,49 @@ export class ShellComponent implements OnInit {
       });
     } catch (e) {
       console.error('❌ Error parsing auth user in ngOnInit:', e);
+    }
+  }
+
+  /**
+   * For CASHIER/MANAGER: verify user has branch assignment. If not, block navigation.
+   * ADMIN/PLATFORM_ADMIN are exempt and can always navigate.
+   */
+  private checkBranchAssignment(): void {
+    try {
+      const authUser = JSON.parse(localStorage.getItem('auth_user') || '{}');
+      const role = authUser?.role;
+
+      if (role === 'ADMIN' || role === 'PLATFORM_ADMIN') {
+        this.hasNoBranchAssignment.set(false);
+        this.branchCheckComplete.set(true);
+        this.loadUserBranches();
+        return;
+      }
+
+      if (!authUser?.id) {
+        this.branchCheckComplete.set(true);
+        this.loadUserBranches();
+        return;
+      }
+
+      this.branchesService.getBranchesByUser(authUser.id).subscribe({
+        next: (userBranches) => {
+          this.branchCheckComplete.set(true);
+          if (!userBranches || userBranches.length === 0) {
+            this.hasNoBranchAssignment.set(true);
+          } else {
+            this.hasNoBranchAssignment.set(false);
+            this.loadUserBranches();
+          }
+        },
+        error: () => {
+          this.branchCheckComplete.set(true);
+          this.loadUserBranches();
+        }
+      });
+    } catch {
+      this.branchCheckComplete.set(true);
+      this.loadUserBranches();
     }
   }
 
@@ -79,11 +179,8 @@ export class ShellComponent implements OnInit {
       }
     };
 
-    // Check immediately
+    // Check once on init; avoid setInterval to prevent extra work that can contribute to freezes
     checkTenant();
-
-    // Check periodically (every 5 seconds)
-    setInterval(checkTenant, 5000);
   }
 
   private loadUserBranches(): void {
@@ -94,11 +191,13 @@ export class ShellComponent implements OnInit {
         this.availableBranches = branches;
         this.branchContextService.setAvailableBranches(branches);
 
-        // After setting available branches, try to restore saved context first
-        // Use setTimeout to ensure setAvailableBranches completes first
-        setTimeout(() => {
-          this.restoreOrSetUserBranch();
-        }, 100);
+        // Run restore only once to avoid cascade when other components (e.g. Reports) trigger branches$ again
+        if (!this.initialBranchRestoreDone) {
+          this.initialBranchRestoreDone = true;
+          setTimeout(() => {
+            this.restoreOrSetUserBranch();
+          }, 100);
+        }
       } else {
         // No branches available, clear context
         this.branchContextService.clearContext();
@@ -213,27 +312,33 @@ export class ShellComponent implements OnInit {
                 return; // Exit early, preserve existing context
               }
 
-              // Logic: Only auto-select if user has exactly 1 branch AND is not admin
-              if (userBranches.length === 1 && !isAdmin) {
-                // User has exactly one branch - auto-select it
+              // Logic for CASHIER: Auto-select their primary branch or first branch
+              // Logic for ADMIN/MANAGER: Only auto-select if exactly 1 branch
+              if (authUser.role === 'CASHIER') {
+                // Cashiers should always have a branch auto-selected
+                const primaryBranch = userBranches.find(ub => ub.isPrimary);
+                const branchToSelect = primaryBranch || userBranches[0];
+                
+                if (branchToSelect) {
+                  const fullBranch = this.availableBranches.find(b => b.id === branchToSelect.branchId);
+                  if (fullBranch) {
+                    this.branchContextService.setCurrentBranch(fullBranch);
+                    console.log(`✅ Auto-selected cashier's branch: ${fullBranch.name}`);
+                  } else {
+                    console.error('❌ Cashier branch not found in available branches');
+                  }
+                }
+              } else if (userBranches.length === 1 && !isAdmin) {
+                // Non-admin users with exactly one branch - auto-select it
                 const userBranch = userBranches[0];
                 console.log('🎯 Single branch user, looking for branch:', userBranch.branchId);
-                console.log('🎯 User branch details:', userBranch);
 
                 const fullBranch = this.availableBranches.find(b => b.id === userBranch.branchId);
-                console.log('🔍 Full branch found:', fullBranch);
-                console.log('🔍 Branch ID comparison:', {
-                  userBranchId: userBranch.branchId,
-                  availableBranchIds: this.availableBranches.map(b => b.id),
-                  matchFound: !!fullBranch
-                });
-
                 if (fullBranch) {
                   this.branchContextService.setCurrentBranch(fullBranch);
                   console.log(`✅ Auto-selected user's single branch: ${fullBranch.name}`);
                 } else {
                   console.error('❌ Full branch not found in available branches');
-                  console.error('❌ This suggests a mismatch between user branch assignment and available branches');
                 }
               } else if (hasMultipleBranches || isAdmin) {
                 // User has multiple branches OR is admin - show "No branch selected"

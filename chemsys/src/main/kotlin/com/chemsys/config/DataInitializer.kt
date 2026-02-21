@@ -57,7 +57,7 @@ class DataInitializer(
         roleRepository.saveAll(roles)
 
         // Create default admin user
-        createDefaultAdmin(savedTenant, roles.find { it.name == "TENANT_ADMIN" }!!)
+        createDefaultAdmin(savedTenant, roles.find { it.name == "ADMIN" } ?: roles.find { it.name == "TENANT_ADMIN" }!!)
     }
 
     private fun createRoles(tenant: Tenant): List<Role> {

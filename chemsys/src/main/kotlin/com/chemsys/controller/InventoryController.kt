@@ -29,13 +29,16 @@ class InventoryController(
     }
 
     /**
-     * Retrieves all inventory for the current tenant.
+     * Retrieves inventory for the current tenant, optionally filtered by branch.
      * 
+     * @param branchId Optional branch ID to filter by (null = all branches)
      * @return List of inventory items with summary information
      */
     @GetMapping
-    fun getAllInventory(): ResponseEntity<InventoryListResponse> {
-        val inventory = inventoryService.getAllInventory()
+    fun getAllInventory(
+        @RequestParam(required = false) branchId: UUID?
+    ): ResponseEntity<InventoryListResponse> {
+        val inventory = inventoryService.getAllInventory(branchId)
         return ResponseEntity.ok(inventory)
     }
 
@@ -65,6 +68,17 @@ class InventoryController(
     ): ResponseEntity<InventoryDto> {
         val inventory = inventoryService.updateInventory(id, request)
         return ResponseEntity.ok(inventory)
+    }
+
+    /**
+     * Deletes inventory (soft delete).
+     *
+     * @param id Inventory ID
+     */
+    @DeleteMapping("/{id}")
+    fun deleteInventory(@PathVariable id: UUID): ResponseEntity<Void> {
+        inventoryService.deleteInventory(id)
+        return ResponseEntity.noContent().build()
     }
 
     /**
@@ -192,5 +206,26 @@ class InventoryController(
         )
         
         return ResponseEntity.ok(stats)
+    }
+
+    /**
+     * Retrieves inventory transfer history for admin review.
+     * Shows all transfers with details about who performed them.
+     * 
+     * @param branchId Optional branch ID to filter transfers
+     * @param startDate Optional start date for filtering
+     * @param endDate Optional end date for filtering
+     * @param performedBy Optional user ID to filter by performer
+     * @return List of transfer history records
+     */
+    @GetMapping("/transfers/history")
+    fun getTransferHistory(
+        @RequestParam(required = false) branchId: UUID?,
+        @RequestParam(required = false) startDate: java.time.OffsetDateTime?,
+        @RequestParam(required = false) endDate: java.time.OffsetDateTime?,
+        @RequestParam(required = false) performedBy: UUID?
+    ): ResponseEntity<InventoryTransferHistoryResponse> {
+        val history = inventoryService.getTransferHistory(branchId, startDate, endDate, performedBy)
+        return ResponseEntity.ok(history)
     }
 }

@@ -105,7 +105,7 @@ import { AdminService, Tenant } from '../services/admin.service';
       }
 
       .tenant-card {
-        @apply bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow;
+        @apply bg-white rounded-lg border border-gray-200 p-6 hover:border-brand-sky/40 transition-colors;
 
         .tenant-header {
           @apply mb-4;

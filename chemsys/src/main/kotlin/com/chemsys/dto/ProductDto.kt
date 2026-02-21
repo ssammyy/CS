@@ -23,6 +23,8 @@ data class ProductDto(
     val storageConditions: String?,
     val minStockLevel: Int,
     val maxStockLevel: Int?,
+    val unitCost: BigDecimal?,
+    val sellingPrice: BigDecimal?,
     val tenantId: UUID,
     val tenantName: String,
     val totalQuantity: Int, // Total quantity across all branches
@@ -45,7 +47,9 @@ data class CreateProductRequest(
     val requiresPrescription: Boolean = false,
     val storageConditions: String? = null,
     val minStockLevel: Int = 10,
-    val maxStockLevel: Int? = null
+    val maxStockLevel: Int? = null,
+    val unitCost: BigDecimal? = null,
+    val sellingPrice: BigDecimal? = null
 )
 
 /**
@@ -63,6 +67,8 @@ data class UpdateProductRequest(
     val storageConditions: String? = null,
     val minStockLevel: Int? = null,
     val maxStockLevel: Int? = null,
+    val unitCost: BigDecimal? = null,
+    val sellingPrice: BigDecimal? = null,
     val isActive: Boolean? = null
 )
 

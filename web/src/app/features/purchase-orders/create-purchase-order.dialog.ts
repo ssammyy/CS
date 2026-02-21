@@ -56,7 +56,7 @@ import { ProductsService } from '../../core/services/products.service';
     DangerButtonComponent
   ],
   template: `
-    <div class="h-[min(92vh,800px)] p-6">
+    <div class="h-[min(92vh,900px)] p-6 overflow-y-auto">
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div>
@@ -111,8 +111,8 @@ import { ProductsService } from '../../core/services/products.service';
 
           <mat-form-field class="w-full">
             <mat-label>Expected Delivery Date</mat-label>
-            <input matInput [matDatepicker]="deliveryPicker" formControlName="expectedDeliveryDate">
-            <mat-datepicker-toggle matSuffix [for]="deliveryPicker"></mat-datepicker-toggle>
+            <input matInput [matDatepicker]="deliveryPicker" formControlName="expectedDeliveryDate" readonly>
+            <mat-datepicker-toggle matIconSuffix [for]="deliveryPicker"></mat-datepicker-toggle>
             <mat-datepicker #deliveryPicker></mat-datepicker>
           </mat-form-field>
 
@@ -351,6 +351,17 @@ export class CreatePurchaseOrderDialogComponent implements OnInit {
     return total;
   }
 
+  /**
+   * Formats a Date object to YYYY-MM-DD string format for backend LocalDate
+   */
+  private formatDateForBackend(date: Date | null | undefined): string | undefined {
+    if (!date) return undefined;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   onSubmit(): void {
     if (this.purchaseOrderForm.valid) {
       this.submitting = true;
@@ -362,13 +373,13 @@ export class CreatePurchaseOrderDialogComponent implements OnInit {
         supplierId: formValue.supplierId,
         branchId: formValue.branchId,
         paymentTerms: formValue.paymentTerms,
-        expectedDeliveryDate: formValue.expectedDeliveryDate,
+        expectedDeliveryDate: this.formatDateForBackend(formValue.expectedDeliveryDate),
         notes: formValue.notes,
         lineItems: formValue.lineItems.map((item: any) => ({
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          expectedDeliveryDate: item.expectedDeliveryDate
+          expectedDeliveryDate: this.formatDateForBackend(item.expectedDeliveryDate)
         }))
       };
 

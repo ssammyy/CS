@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
 /**
@@ -26,15 +27,22 @@ export class InventoryService {
 
   /**
    * Load inventory from API with cache validation.
+   * @param forceRefresh Force refresh cache
+   * @param branchId Optional branch ID to filter (undefined = all branches)
    */
-  loadInventory(forceRefresh = false): void {
+  loadInventory(forceRefresh = false, branchId?: string): void {
     const now = Date.now();
     if (!forceRefresh && (now - this.lastLoadedAt) < this.CACHE_DURATION) {
       return; // Use cached data
     }
 
+    let url = `${environment.apiBaseUrl}/api/inventory`;
+    if (branchId) {
+      url += `?branchId=${branchId}`;
+    }
+
     this.http
-      .get<InventoryListResponse>(`${environment.apiBaseUrl}/api/inventory`)
+      .get<InventoryListResponse>(url)
       .subscribe({
         next: (response) => {
           this.inventorySubject.next(response.inventory);
@@ -62,6 +70,13 @@ export class InventoryService {
   }
 
   /**
+   * Delete inventory (soft delete).
+   */
+  deleteInventory(id: string): Observable<void> {
+    return this.http.delete<void>(`${environment.apiBaseUrl}/api/inventory/${id}`);
+  }
+
+  /**
    * Adjust inventory quantity (adds or removes stock).
    */
   adjustInventory(request: InventoryAdjustmentRequest): Observable<InventoryDto> {
@@ -80,6 +95,16 @@ export class InventoryService {
    */
   getInventoryByBranch(branchId: string): Observable<InventoryDto[]> {
     return this.http.get<InventoryDto[]>(`${environment.apiBaseUrl}/api/inventory/branch/${branchId}`);
+  }
+
+  /**
+   * Get inventory across all branches (for the current tenant).
+   * Used by POS to show "available at other branches" when 0 at current branch.
+   */
+  getInventoryAllBranches(): Observable<InventoryDto[]> {
+    return this.http
+      .get<InventoryListResponse>(`${environment.apiBaseUrl}/api/inventory`)
+      .pipe(map((res) => res.inventory ?? []));
   }
 
   /**
@@ -118,11 +143,24 @@ export class InventoryService {
   }
 
   /**
+   * Get inventory stats, optionally filtered by branch.
+   * @param branchId Optional branch ID (undefined = all branches)
+   */
+  getInventoryStatsByBranch(branchId?: string): Observable<InventoryStats> {
+    if (branchId) {
+      return this.http.get<BranchInventoryStats>(
+        `${environment.apiBaseUrl}/api/inventory/stats/branch/${branchId}`
+      );
+    }
+    return this.http.get<InventoryStats>(`${environment.apiBaseUrl}/api/inventory/stats`);
+  }
+
+  /**
    * Clear cache and force refresh.
    */
-  refreshInventory(): void {
+  refreshInventory(branchId?: string): void {
     this.lastLoadedAt = 0;
-    this.loadInventory(true);
+    this.loadInventory(true, branchId);
   }
 }
 
@@ -167,14 +205,16 @@ export interface CreateInventoryRequest {
 }
 
 export interface UpdateInventoryRequest {
-  id: string;
+  id?: string;
   quantity?: number;
   unitCost?: number;
   sellingPrice?: number;
   reorderLevel?: number;
   maxStock?: number;
   location?: string;
+  locationInBranch?: string;
   notes?: string;
+  isActive?: boolean;
 }
 
 export interface InventoryAdjustmentRequest {

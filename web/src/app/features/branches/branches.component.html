@@ -1,6 +1,10 @@
-<div class="p-6 space-y-4">
+<div class="p-6 space-y-6">
+  <!-- Header -->
   <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-semibold">Branch Management</h1>
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900">Branch Management</h1>
+      <p class="text-gray-600 mt-1">Manage your store locations and staff assignments</p>
+    </div>
     <div class="flex items-center gap-3">
       <app-primary-button
         label="Create Branch"
@@ -15,122 +19,135 @@
     </div>
   </div>
 
-  <div class="bg-white rounded-xl border border-gray-200">
-    
-    <ng-container *ngIf="branches$ | async as branches; else loading">
-      <div *ngIf="branches.length === 0; else branchesTable" class="text-center py-12">
-        <mat-icon class="text-6xl text-brand-sky mb-4">store</mat-icon>
-        <h3 class="text-xl font-semibold text-gray-800 mb-2">No branches found</h3>
-        <p class="text-gray-600 mb-6">Create your first branch to get started with multi-location management.</p>
-        <app-primary-button
-          label="Create First Branch"
-          (click)="openCreateBranchDialog()">
-        </app-primary-button>
-      </div>
+  <!-- Loading State -->
+  <ng-container *ngIf="branches$ | async as branches; else loading">
+    <!-- Empty State -->
+    <div *ngIf="branches.length === 0" class="bg-white rounded-xl border border-gray-200 text-center py-12">
+      <mat-icon class="text-6xl text-brand-sky mb-4">store</mat-icon>
+      <h3 class="text-xl font-semibold text-gray-800 mb-2">No branches found</h3>
+      <p class="text-gray-600 mb-6">Create your first branch to get started with multi-location management.</p>
+      <app-primary-button
+        label="Create First Branch"
+        (click)="openCreateBranchDialog()">
+      </app-primary-button>
+    </div>
 
-      <ng-template #branchesTable>
-        <table mat-table [dataSource]="branches" class="w-full">
-          <!-- Name Column -->
-          <ng-container matColumnDef="name">
-            <th mat-header-cell *matHeaderCellDef class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">Branch Name</th>
-            <td mat-cell *matCellDef="let branch" class="px-4 py-3 border-b border-gray-100">
-              <div class="font-medium text-gray-900">
-                {{ branch.name }}
-              </div>
-            </td>
-          </ng-container>
-
-          <!-- Location Column -->
-          <ng-container matColumnDef="location">
-            <th mat-header-cell *matHeaderCellDef class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">Location</th>
-            <td mat-cell *matCellDef="let branch" class="px-4 py-3 border-b border-gray-100 text-gray-700">
-              {{ branch.location }}
-            </td>
-          </ng-container>
-
-          <!-- Contact Email Column -->
-          <ng-container matColumnDef="contactEmail">
-            <th mat-header-cell *matHeaderCellDef class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">Contact Email</th>
-            <td mat-cell *matCellDef="let branch" class="px-4 py-3 border-b border-gray-100">
-              <a href="mailto:{{ branch.contactEmail }}" class="text-brand-sky hover:text-brand-coral hover:underline">
-                {{ branch.contactEmail }}
-              </a>
-            </td>
-          </ng-container>
-
-          <!-- Contact Phone Column -->
-          <ng-container matColumnDef="contactPhone">
-            <th mat-header-cell *matHeaderCellDef class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">Contact Phone</th>
-            <td mat-cell *matCellDef="let branch" class="px-4 py-3 border-b border-gray-100">
-              <a href="tel:{{ branch.contactPhone }}" class="text-brand-sky hover:text-brand-coral hover:underline">
-                {{ branch.contactPhone }}
-              </a>
-            </td>
-          </ng-container>
-
-          <!-- User Count Column -->
-          <ng-container matColumnDef="userCount">
-            <th mat-header-cell *matHeaderCellDef class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">Staff Count</th>
-            <td mat-cell *matCellDef="let branch" class="px-4 py-3 border-b border-gray-100">
-              <span class="inline-flex items-center justify-center min-w-[32px] h-8 bg-brand-mint text-gray-700 rounded-full font-semibold text-sm">
-                {{ branch.userCount }}
-              </span>
-            </td>
-          </ng-container>
-
-          <!-- Status Column -->
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">Status</th>
-            <td mat-cell *matCellDef="let branch" class="px-4 py-3 border-b border-gray-100">
-              <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
-                [ngClass]="branch.isActive ? 'bg-brand-mint text-gray-700' : 'bg-brand-coral text-white'">
-                {{ branch.isActive ? 'Active' : 'Inactive' }}
-              </span>
-            </td>
-          </ng-container>
-
-          <!-- Actions Column -->
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef class="px-4 py-3 text-left font-semibold text-gray-700 bg-gray-50 border-b border-gray-200">Actions</th>
-            <td mat-cell *matCellDef="let branch" class="px-4 py-3 border-b border-gray-100">
-              <button
-                mat-icon-button
-                [matMenuTriggerFor]="menu"
-                class="text-gray-500 hover:text-brand-sky">
-                <mat-icon>more_vert</mat-icon>
+    <!-- Branches Card Grid -->
+    <div *ngIf="branches.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div *ngFor="let branch of branches" class="bg-white rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-200 overflow-hidden">
+        <!-- Card Header -->
+        <div class="p-5 border-b border-gray-100" [ngClass]="branch.isActive ? 'bg-brand-sky/10' : 'bg-gray-50'">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-lg font-semibold text-gray-900 truncate">{{ branch.name }}</h3>
+              <p class="text-sm text-gray-600 mt-1 flex items-center gap-1">
+                <mat-icon class="text-base text-gray-400">location_on</mat-icon>
+                <span class="truncate">{{ branch.location }}</span>
+              </p>
+            </div>
+            <button
+              mat-icon-button
+              [matMenuTriggerFor]="menu"
+              class="text-gray-500 hover:text-brand-sky flex-shrink-0">
+              <mat-icon>more_vert</mat-icon>
+            </button>
+            <mat-menu #menu="matMenu">
+              <button mat-menu-item (click)="editBranch(branch)">
+                <mat-icon>edit</mat-icon>
+                <span>Edit</span>
               </button>
-              <mat-menu #menu="matMenu">
-                <button mat-menu-item (click)="editBranch(branch)">
-                  <mat-icon>edit</mat-icon>
-                  <span>Edit</span>
-                </button>
-                <button mat-menu-item (click)="viewBranchUsers(branch)">
-                  <mat-icon>people</mat-icon>
-                  <span>View Staff</span>
-                </button>
-                <button mat-menu-item (click)="assignUsersToBranch(branch)">
-                  <mat-icon>person_add</mat-icon>
-                  <span>Assign Staff</span>
-                </button>
-                <button mat-menu-item (click)="deleteBranch(branch)" class="text-brand-coral hover:bg-brand-coral/10">
-                  <mat-icon>delete</mat-icon>
-                  <span>Delete</span>
-                </button>
-              </mat-menu>
-            </td>
-          </ng-container>
+              <button mat-menu-item (click)="viewBranchUsers(branch)">
+                <mat-icon>people</mat-icon>
+                <span>View Staff</span>
+              </button>
+              <button mat-menu-item (click)="assignUsersToBranch(branch)">
+                <mat-icon>person_add</mat-icon>
+                <span>Assign Staff</span>
+              </button>
+              <button mat-menu-item (click)="deleteBranch(branch)" class="text-brand-coral hover:bg-brand-coral/10">
+                <mat-icon>delete</mat-icon>
+                <span>Delete</span>
+              </button>
+            </mat-menu>
+          </div>
+          
+          <!-- Status Badge -->
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+              [ngClass]="branch.isActive ? 'bg-brand-mint text-gray-700' : 'bg-brand-coral text-white'">
+              <mat-icon class="text-xs mr-1">{{ branch.isActive ? 'check_circle' : 'cancel' }}</mat-icon>
+              {{ branch.isActive ? 'Active' : 'Inactive' }}
+            </span>
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-brand-sky/20 text-gray-700">
+              <mat-icon class="text-xs">people</mat-icon>
+              {{ branch.userCount }} {{ branch.userCount === 1 ? 'Staff' : 'Staff' }}
+            </span>
+          </div>
+        </div>
 
-          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
-        </table>
-      </ng-template>
-    </ng-container>
+        <!-- Card Body -->
+        <div class="p-5 space-y-4">
+          <!-- Address -->
+          <div *ngIf="branch.address" class="flex items-start gap-3">
+            <mat-icon class="text-brand-sky text-base mt-0.5">home</mat-icon>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Address</p>
+              <p class="text-sm text-gray-900">{{ branch.address }}</p>
+            </div>
+          </div>
 
-    <ng-template #loading>
-      <div class="flex flex-col items-center justify-center py-12 text-gray-500">
-        <mat-spinner diameter="40"></mat-spinner>
-        <p class="mt-4">Loading branches...</p>
+          <!-- Contact Information -->
+          <div class="space-y-2">
+            <div class="flex items-center gap-3">
+              <mat-icon class="text-brand-mint text-base">email</mat-icon>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Email</p>
+                <a href="mailto:{{ branch.contactEmail }}" class="text-sm text-brand-sky hover:text-brand-coral hover:underline truncate block">
+                  {{ branch.contactEmail }}
+                </a>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <mat-icon class="text-brand-coral text-base">phone</mat-icon>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-500 uppercase tracking-wide mb-1">Phone</p>
+                <a href="tel:{{ branch.contactPhone }}" class="text-sm text-brand-sky hover:text-brand-coral hover:underline">
+                  {{ branch.contactPhone }}
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Footer -->
+        <div class="px-5 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+          <div class="text-xs text-gray-500">
+            <span *ngIf="branch.createdAt">Created {{ branch.createdAt | date:'shortDate' }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <app-secondary-button
+              label="View Staff"
+              icon="people"
+              size="small"
+              (click)="viewBranchUsers(branch)">
+            </app-secondary-button>
+            <app-secondary-button
+              label="Assign"
+              icon="person_add"
+              size="small"
+              (click)="assignUsersToBranch(branch)">
+            </app-secondary-button>
+          </div>
+        </div>
       </div>
-    </ng-template>
-  </div>
+    </div>
+  </ng-container>
+
+  <!-- Loading Template -->
+  <ng-template #loading>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center py-12 text-gray-500">
+      <mat-spinner diameter="40"></mat-spinner>
+      <p class="mt-4">Loading branches...</p>
+    </div>
+  </ng-template>
 </div>

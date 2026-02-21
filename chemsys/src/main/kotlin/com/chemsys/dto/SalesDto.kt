@@ -107,7 +107,9 @@ data class SaleDto(
     val returnStatus: SaleReturnStatus,
     val isCreditSale: Boolean,
     val lineItems: List<SaleLineItemDto>,
-    val payments: List<SalePaymentDto>
+    val payments: List<SalePaymentDto>,
+    /** Cashier commission (15% of profit) for this sale. Only set when listing sales for the cashier's own view. */
+    val commission: BigDecimal? = null
 )
 
 /**
@@ -154,9 +156,9 @@ data class CreateCustomerRequest(
     @field:Size(max = 255, message = "First name must not exceed 255 characters")
     val firstName: String,
 
-    @field:NotBlank(message = "Last name is required")
+    /** Optional last name; stored as empty string when not provided. */
     @field:Size(max = 255, message = "Last name must not exceed 255 characters")
-    val lastName: String,
+    val lastName: String? = null,
 
     val phone: String? = null
 )
@@ -281,8 +283,10 @@ data class SearchSalesRequest(
     val cashierId: UUID? = null,
     val status: SaleStatus? = null,
     val paymentMethod: PaymentMethod? = null,
-    val startDate: OffsetDateTime? = null,
-    val endDate: OffsetDateTime? = null,
+    /** Start date (YYYY-MM-DD or ISO-8601). Inclusive - start of day. */
+    val startDate: String? = null,
+    /** End date (YYYY-MM-DD or ISO-8601). Inclusive - end of day. */
+    val endDate: String? = null,
     val saleNumber: String? = null,
     val customerName: String? = null,
     val productId: UUID? = null,
@@ -296,6 +300,7 @@ data class SearchSalesRequest(
 
 /**
  * Response DTO for sales list with pagination.
+ * @param totalFilteredAmount Sum of totalAmount for all sales matching the filter (across all pages)
  */
 data class SalesListResponse(
     val sales: List<SaleDto>,
@@ -304,7 +309,8 @@ data class SalesListResponse(
     val currentPage: Int,
     val pageSize: Int,
     val hasNext: Boolean,
-    val hasPrevious: Boolean
+    val hasPrevious: Boolean,
+    val totalFilteredAmount: java.math.BigDecimal? = null
 )
 
 /**
@@ -441,3 +447,36 @@ data class InventoryItemDto(
     val sellingPrice: BigDecimal?
 )
 
+// ==================== Sale Edit Request (Maker-Checker) DTOs ====================
+
+data class CreateSaleEditRequestDto(
+    val saleId: UUID,
+    val saleLineItemId: UUID,
+    val requestType: String,
+    val newUnitPrice: BigDecimal? = null,
+    val reason: String? = null
+)
+
+data class SaleEditRequestDto(
+    val id: UUID,
+    val saleId: UUID,
+    val saleNumber: String,
+    val saleLineItemId: UUID?,
+    val productName: String?,
+    val requestType: String,
+    val status: String,
+    val currentUnitPrice: BigDecimal?,
+    val newUnitPrice: BigDecimal?,
+    val quantity: Int?,
+    val reason: String?,
+    val requestedById: UUID,
+    val requestedByName: String,
+    val requestedAt: OffsetDateTime,
+    val approvedById: UUID?,
+    val approvedByName: String?,
+    val approvedAt: OffsetDateTime?,
+    val rejectionReason: String?
+)data class ApproveRejectSaleEditRequestDto(
+    val approved: Boolean,
+    val rejectionReason: String? = null
+)

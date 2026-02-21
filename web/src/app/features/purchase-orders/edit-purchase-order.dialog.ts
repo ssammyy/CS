@@ -57,7 +57,7 @@ import { ProductsService } from '../../core/services/products.service';
     DangerButtonComponent
   ],
   template: `
-    <div class="p-6">
+    <div class="h-[min(92vh,900px)] p-6 overflow-y-auto">
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div>
@@ -112,8 +112,8 @@ import { ProductsService } from '../../core/services/products.service';
 
           <mat-form-field class="w-full">
             <mat-label>Expected Delivery Date</mat-label>
-            <input matInput [matDatepicker]="deliveryPicker" formControlName="expectedDeliveryDate">
-            <mat-datepicker-toggle matSuffix [for]="deliveryPicker"></mat-datepicker-toggle>
+            <input matInput [matDatepicker]="deliveryPicker" formControlName="expectedDeliveryDate" readonly>
+            <mat-datepicker-toggle matIconSuffix [for]="deliveryPicker"></mat-datepicker-toggle>
             <mat-datepicker #deliveryPicker></mat-datepicker>
           </mat-form-field>
 
@@ -319,6 +319,18 @@ export class EditPurchaseOrderDialogComponent implements OnInit {
     });
   }
 
+  /**
+   * Parses a date string (YYYY-MM-DD) to a Date object for the datepicker
+   */
+  private parseDateFromBackend(dateString: string | null | undefined): Date | null {
+    if (!dateString) return null;
+    try {
+      return new Date(dateString);
+    } catch {
+      return null;
+    }
+  }
+
   populateForm(): void {
     // Populate form with existing purchase order data
     this.purchaseOrderForm.patchValue({
@@ -327,7 +339,7 @@ export class EditPurchaseOrderDialogComponent implements OnInit {
       supplierId: this.purchaseOrder.supplierId,
       branchId: this.purchaseOrder.branchId,
       paymentTerms: this.purchaseOrder.paymentTerms,
-      expectedDeliveryDate: this.purchaseOrder.expectedDeliveryDate,
+      expectedDeliveryDate: this.parseDateFromBackend(this.purchaseOrder.expectedDeliveryDate),
       notes: this.purchaseOrder.notes
     });
 
@@ -344,7 +356,7 @@ export class EditPurchaseOrderDialogComponent implements OnInit {
       productId: [item?.productId || '', Validators.required],
       quantity: [item?.quantity || 1, [Validators.required, Validators.min(1)]],
       unitPrice: [item?.unitPrice || 0, [Validators.required, Validators.min(0.01)]],
-      expectedDeliveryDate: [item?.expectedDeliveryDate || '']
+      expectedDeliveryDate: [this.parseDateFromBackend(item?.expectedDeliveryDate) || '']
     });
   }
 
@@ -373,6 +385,17 @@ export class EditPurchaseOrderDialogComponent implements OnInit {
     return total;
   }
 
+  /**
+   * Formats a Date object to YYYY-MM-DD string format for backend LocalDate
+   */
+  private formatDateForBackend(date: Date | null | undefined): string | undefined {
+    if (!date) return undefined;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   onSubmit(): void {
     if (this.purchaseOrderForm.valid) {
       this.submitting = true;
@@ -384,14 +407,14 @@ export class EditPurchaseOrderDialogComponent implements OnInit {
         supplierId: formValue.supplierId,
         branchId: formValue.branchId,
         paymentTerms: formValue.paymentTerms,
-        expectedDeliveryDate: formValue.expectedDeliveryDate,
+        expectedDeliveryDate: this.formatDateForBackend(formValue.expectedDeliveryDate),
         notes: formValue.notes,
         lineItems: formValue.lineItems.map((item: any) => ({
           id: item.id,
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          expectedDeliveryDate: item.expectedDeliveryDate
+          expectedDeliveryDate: this.formatDateForBackend(item.expectedDeliveryDate)
         }))
       };
 

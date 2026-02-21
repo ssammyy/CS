@@ -2,121 +2,72 @@
   <!-- Left: form panel -->
   <div class="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-8 lg:p-12">
     <div class="relative w-full max-w-md sm:max-w-md md:max-w-lg">
-        <!-- LOGIN VIEW -->
-        <ng-container *ngIf="!showSignup; else signupView">
-          <div class="mb-8">
-            <div class="h-1.5 w-16 rounded-full bg-gradient-to-r from-brand-coral to-brand-sky mb-4"></div>
-            <h2 class="text-2xl sm:text-3xl font-semibold">Sign in</h2>
-            <p class="text-gray-600 mt-1 text-sm">Welcome back. Please enter your details.</p>
+      <div class="mb-8">
+        <!-- Wordmark Logo: s a a m -->
+        <div class="flex items-center gap-1 mb-4">
+          <span class="text-3xl font-bold text-brand-coral">s</span>
+          <span class="text-3xl font-bold text-brand-sky">a</span>
+          <span class="text-3xl font-bold text-brand-mint">a</span>
+          <span class="text-3xl font-bold text-brand-coral">m</span>
+          <span class="text-3xl font-bold text-gray-900">POS</span>
+        </div>
+        <div class="h-1.5 w-16 rounded-full bg-gradient-to-r from-brand-coral to-brand-sky mb-4"></div>
+        <h2 class="text-2xl sm:text-3xl font-semibold">Sign in</h2>
+        <p class="text-gray-600 mt-1 text-sm">Welcome back. Please enter your details.</p>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="mt-2 space-y-4 sm:space-y-5">
+        <mat-form-field class="w-full" color="primary">
+          <mat-label>Username</mat-label>
+          <mat-icon matPrefix class="mr-2 opacity-60">person</mat-icon>
+          <input matInput formControlName="username" autocomplete="username" required />
+          <mat-error *ngIf="form.controls.username.invalid && form.controls.username.touched">
+            Username is required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field class="w-full" color="primary">
+          <mat-label>Password</mat-label>
+          <mat-icon matPrefix class="mr-2 opacity-60">lock</mat-icon>
+          <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" autocomplete="current-password" required />
+          <button mat-icon-button matSuffix type="button" (click)="hidePassword = !hidePassword" [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
+            <mat-icon>{{ hidePassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+          </button>
+          <mat-error *ngIf="form.controls.password.invalid && form.controls.password.touched">
+            Password is required
+          </mat-error>
+        </mat-form-field>
+
+        <div class="flex items-center justify-between gap-4 flex-wrap">
+          <mat-checkbox formControlName="remember" color="primary">Remember me</mat-checkbox>
+          <a class="text-sm text-gray-500 hover:underline" href="#">Forgot password</a>
+        </div>
+
+        <!-- Error Message Display -->
+        <div *ngIf="errorMessage()" class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <mat-icon class="text-red-600 flex-shrink-0">error</mat-icon>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-red-800">Sign in failed</p>
+            <p class="text-sm text-red-700 mt-1">{{ errorMessage() }}</p>
           </div>
+          <button type="button" (click)="errorMessage.set(null)" class="text-red-600 hover:text-red-800 flex-shrink-0" aria-label="Dismiss error">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
 
-          <form [formGroup]="form" (ngSubmit)="onSubmit()" class="mt-2 space-y-4 sm:space-y-5">
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Username</mat-label>
-              <mat-icon matPrefix class="mr-2 opacity-60">person</mat-icon>
-              <input matInput formControlName="username" autocomplete="username" required />
-              <mat-error *ngIf="form.controls.username.invalid && form.controls.username.touched">
-                Username is required
-              </mat-error>
-            </mat-form-field>
-
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Password</mat-label>
-              <mat-icon matPrefix class="mr-2 opacity-60">lock</mat-icon>
-              <input matInput [type]="hidePassword ? 'password' : 'text'" formControlName="password" autocomplete="current-password" required />
-              <button mat-icon-button matSuffix type="button" (click)="hidePassword = !hidePassword" [attr.aria-label]="hidePassword ? 'Show password' : 'Hide password'">
-                <mat-icon>{{ hidePassword ? 'visibility' : 'visibility_off' }}</mat-icon>
-              </button>
-              <mat-error *ngIf="form.controls.password.invalid && form.controls.password.touched">
-                Password is required
-              </mat-error>
-            </mat-form-field>
-
-            <div class="flex items-center justify-between gap-4 flex-wrap">
-              <mat-checkbox formControlName="remember" color="primary">Remember me</mat-checkbox>
-              <a class="text-sm text-gray-500 hover:underline" href="#">Forgot password</a>
-            </div>
-
-            <button mat-raised-button class="w-full !py-3 !text-base text-white bg-gradient-to-r from-brand-coral to-brand-sky hover:opacity-95 transition" type="submit" [disabled]="form.invalid">
-              Sign in
-            </button>
-          </form>
-
-          <div class="mt-6 text-sm text-gray-600 flex items-center gap-2">
-            <span class="flex-1 h-px bg-gray-200"></span>
-            <span>or continue with</span>
-            <span class="flex-1 h-px bg-gray-200"></span>
-          </div>
-
-          <div class="mt-4 grid grid-cols-2 gap-3">
-            <button type="button" class="border border-gray-200/80 rounded-xl py-2.5 text-sm hover:bg-gray-50">Google</button>
-            <button type="button" class="border border-gray-200/80 rounded-xl py-2.5 text-sm hover:bg-gray-50">Apple</button>
-          </div>
-
-          <div class="mt-6 text-sm text-gray-600">
-            Don't have an account?
-            <button type="button" class="text-brand-coral hover:underline ml-1" (click)="onToggleSignup()">Sign up</button>
-          </div>
-        </ng-container>
-
-        <!-- SIGNUP VIEW -->
-        <ng-template #signupView>
-          <div class="mb-8">
-            <div class="h-1.5 w-16 rounded-full bg-gradient-to-r from-brand-coral to-brand-sky mb-4"></div>
-            <h2 class="text-2xl sm:text-3xl font-semibold">Create your account</h2>
-            <p class="text-gray-600 mt-1 text-sm">Sign up to create your tenant and admin account.</p>
-          </div>
-
-          <form [formGroup]="signupForm" (ngSubmit)="onSignup()" class="mt-2 space-y-4 sm:space-y-5">
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Tenant name</mat-label>
-              <mat-icon matPrefix class="mr-2 opacity-60">apartment</mat-icon>
-              <input matInput formControlName="tenantName" required />
-              <mat-error *ngIf="signupForm.controls.tenantName.invalid && signupForm.controls.tenantName.touched">
-                Tenant name is required
-              </mat-error>
-            </mat-form-field>
-
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Admin username</mat-label>
-              <mat-icon matPrefix class="mr-2 opacity-60">person</mat-icon>
-              <input matInput formControlName="adminUsername" required />
-              <mat-error *ngIf="signupForm.controls.adminUsername.invalid && signupForm.controls.adminUsername.touched">
-                Admin username is required
-              </mat-error>
-            </mat-form-field>
-
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Admin email</mat-label>
-              <mat-icon matPrefix class="mr-2 opacity-60">mail</mat-icon>
-              <input matInput type="email" formControlName="adminEmail" required />
-              <mat-error *ngIf="signupForm.controls.adminEmail.invalid && signupForm.controls.adminEmail.touched">
-                Valid email is required
-              </mat-error>
-            </mat-form-field>
-
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Admin password</mat-label>
-              <mat-icon matPrefix class="mr-2 opacity-60">lock</mat-icon>
-              <input matInput [type]="hideSignupPassword ? 'password' : 'text'" formControlName="adminPassword" required />
-              <button mat-icon-button matSuffix type="button" (click)="hideSignupPassword = !hideSignupPassword" [attr.aria-label]="hideSignupPassword ? 'Show password' : 'Hide password'">
-                <mat-icon>{{ hideSignupPassword ? 'visibility' : 'visibility_off' }}</mat-icon>
-              </button>
-              <mat-error *ngIf="signupForm.controls.adminPassword.invalid && signupForm.controls.adminPassword.touched">
-                Password must be at least 6 characters
-              </mat-error>
-            </mat-form-field>
-
-            <button mat-raised-button class="w-full !py-3 !text-base text-white bg-gradient-to-r from-brand-coral to-brand-sky hover:opacity-95 transition" type="submit" [disabled]="signupForm.invalid">
-              Create account
-            </button>
-          </form>
-
-          <div class="mt-6 text-sm text-gray-600">
-            Already have an account?
-            <button type="button" class="text-brand-coral hover:underline ml-1" (click)="onToggleSignup()">Sign in</button>
-          </div>
-        </ng-template>
+        <button mat-raised-button class="w-full !py-3 !text-base text-white bg-gradient-to-r from-brand-coral to-brand-sky hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed" type="submit" [disabled]="form.invalid || loading()">
+          <span *ngIf="!loading()">Sign in</span>
+          <span *ngIf="loading()" class="flex items-center justify-center gap-2">
+            <mat-spinner diameter="20"></mat-spinner>
+            <span>Signing in...</span>
+          </span>
+        </button>
+      </form>
+<!-- 
+      <div class="mt-6 text-sm text-gray-600">
+        Don't have an account?
+        <a routerLink="/register" class="text-brand-coral hover:underline ml-1">Sign up</a>
+      </div> -->
     </div>
   </div>
 
@@ -135,10 +86,14 @@
         <!-- Header -->
         <div>
           <div class="inline-flex items-center gap-3 mb-8">
-            <div class="h-10 w-10 rounded-xl bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm">
-              <div class="h-6 w-6 rounded-lg bg-[#F99E98]"></div>
+            <!-- Wordmark Logo: s a a m -->
+            <div class="flex items-center gap-1">
+              <span class="text-2xl font-bold text-brand-coral">s</span>
+              <span class="text-2xl font-bold text-brand-sky">a</span>
+              <span class="text-2xl font-bold text-brand-mint">a</span>
+              <span class="text-2xl font-bold text-brand-coral">m</span>
             </div>
-            <span class="text-lg font-semibold text-gray-800">SaamPOS</span>
+            <span class="text-lg font-semibold text-gray-800">POS</span>
           </div>
           
           <div class="max-w-md">

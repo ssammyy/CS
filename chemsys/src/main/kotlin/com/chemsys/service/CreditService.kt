@@ -347,6 +347,8 @@ class CreditService(
 
     /**
      * Retrieves credit accounts with filtering and pagination.
+     * When branchId is null, returns accounts for the entire tenant (all branches).
+     * When branchId is provided, returns only accounts for that branch.
      */
     @Transactional(readOnly = true)
     fun getCreditAccounts(
@@ -361,25 +363,39 @@ class CreditService(
     ): Page<CreditAccountSummaryDto> {
         val currentTenantId = TenantContext.getCurrentTenant()
             ?: throw RuntimeException("No tenant context found")
-        val currentBranchId = branchId ?: getCurrentBranchId()
         val pageable: Pageable = PageRequest.of(page, size)
-        
+        val today = LocalDate.now()
+
         return when {
             customerId != null -> {
                 val accounts = creditAccountRepository.findByCustomerIdAndTenantId(customerId, currentTenantId)
                 PageImpl(accounts.map { it.toSummaryDto() }, pageable, accounts.size.toLong())
             }
             status != null -> {
-                creditAccountRepository.findByStatusAndTenantIdAndBranchId(status, currentTenantId, currentBranchId, pageable)
-                    .map { it.toSummaryDto() }
+                if (branchId != null) {
+                    creditAccountRepository.findByStatusAndTenantIdAndBranchId(status, currentTenantId, branchId, pageable)
+                        .map { it.toSummaryDto() }
+                } else {
+                    creditAccountRepository.findByStatusAndTenantId(status, currentTenantId, pageable)
+                        .map { it.toSummaryDto() }
+                }
             }
             isOverdue == true -> {
-                val overdueAccounts = creditAccountRepository.findOverdueAccounts(currentTenantId, currentBranchId, LocalDate.now())
+                val overdueAccounts = if (branchId != null) {
+                    creditAccountRepository.findOverdueAccounts(currentTenantId, branchId, today)
+                } else {
+                    creditAccountRepository.findOverdueAccountsByTenantId(currentTenantId, today)
+                }
                 PageImpl(overdueAccounts.map { it.toSummaryDto() }, pageable, overdueAccounts.size.toLong())
             }
             else -> {
-                creditAccountRepository.findByTenantIdAndBranchId(currentTenantId, currentBranchId, pageable)
-                    .map { it.toSummaryDto() }
+                if (branchId != null) {
+                    creditAccountRepository.findByTenantIdAndBranchId(currentTenantId, branchId, pageable)
+                        .map { it.toSummaryDto() }
+                } else {
+                    creditAccountRepository.findByTenantId(currentTenantId, pageable)
+                        .map { it.toSummaryDto() }
+                }
             }
         }
     }
@@ -449,11 +465,11 @@ class CreditService(
         val creditNumberPrefix = "CR-$branchPrefix-"
         val currentTenantId = TenantContext.getCurrentTenant()
             ?: throw RuntimeException("No tenant context found")
-        val currentBranchId = getCurrentBranchId()
+        // Count existing accounts for this branch and prefix so the new number is unique
         val nextSequence = creditAccountRepository.countByTenantIdAndBranchIdAndCreditNumberStartingWith(
-            currentTenantId, currentBranchId, creditNumberPrefix
+            currentTenantId, branchId, creditNumberPrefix
         ) + 1
-        
+
         return "$creditNumberPrefix${String.format("%06d", nextSequence)}"
     }
 

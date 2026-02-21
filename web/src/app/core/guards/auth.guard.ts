@@ -4,15 +4,20 @@ import { AuthService } from '../services/auth.service';
 
 /**
  * Blocks navigation to protected routes when user is not authenticated.
+ * Redirects to /change-password when user must change password (force-reset-on-first-login).
  */
-export const authGuard: CanActivateFn = () => {
+export const authGuard: CanActivateFn = (route, state) => {
   const authService = inject(AuthService);
   const router = inject(Router);
-  if (authService.isAuthenticated()) {
-    return true;
+  if (!authService.isAuthenticated()) {
+    router.navigate(['/login']);
+    return false;
   }
-  router.navigate(['/login']);
-  return false;
+  if (authService.requiresPasswordChange() && !state.url.includes('/change-password')) {
+    router.navigate(['/change-password']);
+    return false;
+  }
+  return true;
 };
 
 /** Admin-only guard: checks stored user role equals ADMIN or PLATFORM_ADMIN. */

@@ -370,11 +370,14 @@ enum class SaleStatus {
 
 enum class PaymentMethod {
     CASH,           // Cash payment
-    MPESA,          // Mobile money payment
-    CARD,           // Credit/Debit card
-    INSURANCE,      // Insurance payment
-    CREDIT,         // Credit/Account payment
-    CHEQUE          // Cheque payment
+    TILL,           // Till payment
+    FAMILY_BANK,    // Family Bank
+    WATU_SIMU,      // Watu simu
+    MOGO,           // Mogo
+    ONFON_N1,       // Onfon N1
+    ONFON_N2,       // Onfon N2
+    ONFON_GLEX,     // Onfon Glex
+    CREDIT          // Credit/Account payment
 }
 
 enum class ReturnStatus {

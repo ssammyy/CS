@@ -6,7 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatDividerModule } from '@angular/material/divider';
 
-import { SalesService, SaleDto, PaymentMethod } from '../../../../core/services/sales.service';
+import { SalesService, SaleDto, getPaymentMethodDisplayName } from '../../../../core/services/sales.service';
 
 /**
  * Dialog component for printing sale receipts.
@@ -40,7 +40,13 @@ import { SalesService, SaleDto, PaymentMethod } from '../../../../core/services/
         <!-- Receipt Preview -->
         <div class="receipt-preview" id="receipt-content">
           <div class="receipt-header">
-            <h1 class="company-name">SaamPOS</h1>
+            <h1 class="company-name">
+              <span style="color: #F99E98; font-weight: bold;">s</span>
+              <span style="color: #A1C7F8; font-weight: bold;">a</span>
+              <span style="color: #CBEBD0; font-weight: bold;">a</span>
+              <span style="color: #F99E98; font-weight: bold;">m</span>
+              <span style="color: #111827; font-weight: bold;"> POS</span>
+            </h1>
             <p class="branch-info">{{ getBranchName() }}</p>
             <p class="receipt-info">
               Receipt #: {{ data.sale.saleNumber }}<br>
@@ -99,7 +105,7 @@ import { SalesService, SaleDto, PaymentMethod } from '../../../../core/services/
             <h3 class="section-title">Payment</h3>
             <div class="payment-list">
               <div class="payment-row" *ngFor="let payment of data.sale.payments">
-                <span class="payment-method">{{ payment.paymentMethod }}</span>
+                <span class="payment-method">{{ getPaymentMethodDisplayName(payment.paymentMethod) }}</span>
                 <span class="payment-amount">{{ formatCurrency(payment.amount) }}</span>
               </div>
             </div>
@@ -500,6 +506,8 @@ export class PrintReceiptDialogComponent implements OnInit {
     // This would typically come from the branch context service
     return 'Main Branch';
   }
+
+  readonly getPaymentMethodDisplayName = getPaymentMethodDisplayName;
 
   /**
    * Formats date for display

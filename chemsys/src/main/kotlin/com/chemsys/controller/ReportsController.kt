@@ -2,6 +2,7 @@ package com.chemsys.controller
 
 import com.chemsys.dto.FinancialReportDto
 import com.chemsys.dto.InventoryReportDto
+import com.chemsys.dto.UserPerformanceReportDto
 import com.chemsys.dto.VarianceReportDto
 import com.chemsys.dto.VatReportDto
 import com.chemsys.service.ReportService
@@ -114,6 +115,33 @@ class ReportsController(
             ResponseEntity.ok(report)
         } catch (e: Exception) {
             logger.error("Error fetching VAT report: ${e.message}", e)
+            ResponseEntity.internalServerError().build()
+        }
+    }
+
+    /**
+     * Get user performance report: revenue, sales count, and commission per cashier/manager.
+     * Use start/end for daily, weekly, monthly, or yearly views.
+     *
+     * @param startDate Report start date (YYYY-MM-DD)
+     * @param endDate Report end date (YYYY-MM-DD)
+     * @param branchId Optional branch filter
+     */
+    @GetMapping("/user-performance")
+    fun getUserPerformanceReport(
+        @RequestParam startDate: String,
+        @RequestParam endDate: String,
+        @RequestParam(required = false) branchId: String?
+    ): ResponseEntity<UserPerformanceReportDto> {
+        return try {
+            val start = LocalDate.parse(startDate)
+            val end = LocalDate.parse(endDate)
+            val branchUuid = branchId?.let { UUID.fromString(it) }
+
+            val report = reportService.getUserPerformanceReport(start, end, branchUuid)
+            ResponseEntity.ok(report)
+        } catch (e: Exception) {
+            logger.error("Error fetching user performance report: ${e.message}", e)
             ResponseEntity.internalServerError().build()
         }
     }

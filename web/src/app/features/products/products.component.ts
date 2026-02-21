@@ -124,8 +124,8 @@ import { ProductDetailsDialogComponent } from './product-details.dialog';
 
       <!-- Search and Filters -->
       <div class="bg-white rounded-lg shadow p-4 mb-6">
-        <div class="flex flex-col md:flex-row gap-4">
-          <mat-form-field class="flex-1">
+        <div class="flex flex-col md:flex-row gap-4 items-center">
+          <mat-form-field class="flex-1 w-full">
             <mat-label>Search Products</mat-label>
             <mat-icon matPrefix class="mr-2 opacity-60">search</mat-icon>
             <input 
@@ -135,28 +135,41 @@ import { ProductDetailsDialogComponent } from './product-details.dialog';
               placeholder="Search by name, generic name, or barcode..." />
           </mat-form-field>
 
-          <mat-form-field class="w-full md:w-48">
-            <mat-label>Filter by Status</mat-label>
-            <mat-select [(ngModel)]="statusFilter" (selectionChange)="applyFilters()">
-              <mat-option value="">All Status</mat-option>
-              <mat-option value="active">Active</mat-option>
-              <mat-option value="inactive">Inactive</mat-option>
-            </mat-select>
-          </mat-form-field>
+          <button 
+            type="button"
+            (click)="filtersCollapsed = !filtersCollapsed"
+            class="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm text-gray-700 whitespace-nowrap">
+            <mat-icon>filter_list</mat-icon>
+            <span>Filters</span>
+            <mat-icon>{{ filtersCollapsed ? 'expand_more' : 'expand_less' }}</mat-icon>
+          </button>
+        </div>
 
-          <mat-form-field class="w-full md:w-48">
-            <mat-label>Filter by Type</mat-label>
-            <mat-select [(ngModel)]="typeFilter" (selectionChange)="applyFilters()">
-              <mat-option value="">All Types</mat-option>
-              <mat-option value="prescription">Prescription Required</mat-option>
-              <mat-option value="otc">Over the Counter</mat-option>
-            </mat-select>
-          </mat-form-field>
+        <div *ngIf="!filtersCollapsed" class="mt-4 pt-4 border-t border-gray-200">
+          <div class="flex flex-col md:flex-row gap-4">
+            <mat-form-field class="w-full md:w-48">
+              <mat-label>Filter by Status</mat-label>
+              <mat-select [(ngModel)]="statusFilter" (selectionChange)="applyFilters()">
+                <mat-option value="">All Status</mat-option>
+                <mat-option value="active">Active</mat-option>
+                <mat-option value="inactive">Inactive</mat-option>
+              </mat-select>
+            </mat-form-field>
 
-          <app-secondary-button 
-            label="Clear Filters"
-            (click)="clearFilters()">
-          </app-secondary-button>
+            <mat-form-field class="w-full md:w-48">
+              <mat-label>Filter by Type</mat-label>
+              <mat-select [(ngModel)]="typeFilter" (selectionChange)="applyFilters()">
+                <mat-option value="">All Types</mat-option>
+                <mat-option value="prescription">Prescription Required</mat-option>
+                <mat-option value="otc">Over the Counter</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <app-secondary-button 
+              label="Clear Filters"
+              (click)="clearFilters()">
+            </app-secondary-button>
+          </div>
         </div>
       </div>
 
@@ -196,6 +209,7 @@ import { ProductDetailsDialogComponent } from './product-details.dialog';
                   <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cost / Price</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -215,6 +229,14 @@ import { ProductDetailsDialogComponent } from './product-details.dialog';
                         <div *ngIf="product.dosageForm">{{ product.dosageForm }}</div>
                         <div *ngIf="product.manufacturer" class="text-gray-500">{{ product.manufacturer }}</div>
                       </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                      <div *ngIf="product.unitCost != null || product.sellingPrice != null">
+                        <span *ngIf="product.unitCost != null">Cost: {{ product.unitCost | currency:'KES' }}</span>
+                        <span *ngIf="product.unitCost != null && product.sellingPrice != null"> · </span>
+                        <span *ngIf="product.sellingPrice != null">Price: {{ product.sellingPrice | currency:'KES' }}</span>
+                      </div>
+                      <span *ngIf="product.unitCost == null && product.sellingPrice == null" class="text-gray-400">—</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                       <div class="flex items-center">
@@ -324,6 +346,12 @@ import { ProductDetailsDialogComponent } from './product-details.dialog';
                 <div *ngIf="product.barcode" class="text-sm text-gray-600">
                   <span class="font-medium">Barcode:</span> {{ product.barcode }}
                 </div>
+                <div *ngIf="product.unitCost != null || product.sellingPrice != null" class="text-sm text-gray-600">
+                  <span class="font-medium">Pricing:</span>
+                  <span *ngIf="product.unitCost != null">Cost {{ product.unitCost | currency:'KES' }}</span>
+                  <span *ngIf="product.unitCost != null && product.sellingPrice != null"> · </span>
+                  <span *ngIf="product.sellingPrice != null">Price {{ product.sellingPrice | currency:'KES' }}</span>
+                </div>
               </div>
 
               <!-- Inventory Status -->
@@ -397,6 +425,7 @@ export class ProductsComponent implements OnInit {
   searchQuery = '';
   statusFilter = '';
   typeFilter = '';
+  filtersCollapsed = true;
   stats = {
     totalProducts: 0,
     lowStockCount: 0,

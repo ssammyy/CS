@@ -13,6 +13,7 @@ spring:
   
   jpa:
     hibernate:
+      # Use 'validate' so Flyway is the single source of DDL. Avoids Hibernate adding columns without DEFAULT (e.g. status on expenses) which fails when table has existing rows.
       ddl-auto: update
     show-sql: false
     properties:
@@ -41,6 +42,15 @@ mpesa:
 # Application Configuration
 app:
   base-url: ${APP_BASE_URL:http://localhost:8080}
+
+# AI Chatbot Configuration (OpenRouter)
+ai:
+  openai:
+    api-key: ${OPENAI_API_KEY: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}
+    api-url: ${OPENAI_API_URL:https://openrouter.ai/api/v1/chat/completions}
+    model: ${OPENAI_MODEL:openai/gpt-4o-mini}
+    max-tokens: ${OPENAI_MAX_TOKENS:2000}
+    temperature: ${OPENAI_TEMPERATURE:0.7}
 
 management:
   endpoints:

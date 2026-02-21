@@ -514,7 +514,8 @@ export class PurchaseOrdersComponent implements OnInit {
   // Action Methods
   createPurchaseOrder(): void {
     const dialogRef = this.dialog.open(CreatePurchaseOrderDialogComponent, {
-      width: '800px',
+      width: '1200px',
+      maxWidth: '95vw',
       data: {}
     });
 
@@ -528,7 +529,8 @@ export class PurchaseOrdersComponent implements OnInit {
 
   editPurchaseOrder(po: PurchaseOrderDto): void {
     const dialogRef = this.dialog.open(EditPurchaseOrderDialogComponent, {
-      width: '800px',
+      width: '1200px',
+      maxWidth: '95vw',
       data: { purchaseOrder: po }
     });
 

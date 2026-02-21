@@ -149,15 +149,7 @@ export interface TransferInventoryDialogData {
               </mat-hint>
             </mat-form-field>
 
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Batch Number</mat-label>
-              <input
-                matInput
-                name="batchNumber"
-                [(ngModel)]="transfer.batchNumber"
-                [placeholder]="data.item?.batchNumber || 'e.g., BATCH001'" />
-              <mat-hint>Leave empty to use existing batch</mat-hint>
-            </mat-form-field>
+
           </div>
         </div>
 

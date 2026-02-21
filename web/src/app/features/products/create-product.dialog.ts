@@ -61,7 +61,7 @@ export interface CreateProductDialogData {
             </mat-form-field>
 
             <mat-form-field class="w-full" color="primary">
-              <mat-label>Variant / Generic Name</mat-label>
+              <mat-label>Storage / Specs</mat-label>
               <input
                 matInput
                 name="genericName"
@@ -69,15 +69,43 @@ export interface CreateProductDialogData {
             </mat-form-field>
           </div>
 
-          <mat-form-field class="w-full" color="primary">
-            <mat-label>Description</mat-label>
-            <textarea
-              matInput
-              name="description"
-              [(ngModel)]="product.description"
-              rows="3"
-              placeholder="Product description, usage instructions, and any important notes..."></textarea>
-          </mat-form-field>
+         
+        </div>
+
+        <!-- Pricing Section (product-level cost and selling price) -->
+        <div class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <mat-icon class="text-brand-sky">payments</mat-icon>
+            Pricing
+          </h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <mat-form-field class="w-full" color="primary">
+              <mat-label>Unit Cost (KES)</mat-label>
+              <input
+                matInput
+                type="number"
+                name="unitCost"
+                [(ngModel)]="product.unitCost"
+                min="0"
+                step="0.01"
+                placeholder="Cost price" />
+              <mat-hint>Cost price per unit</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field class="w-full" color="primary">
+              <mat-label>Selling Price (KES)</mat-label>
+              <input
+                matInput
+                type="number"
+                name="sellingPrice"
+                [(ngModel)]="product.sellingPrice"
+                min="0"
+                step="0.01"
+                placeholder="Selling price" />
+              <mat-hint>Default selling price per unit</mat-hint>
+            </mat-form-field>
+          </div>
         </div>
 
         <!-- Stock Management Section -->
@@ -153,7 +181,9 @@ export class CreateProductDialogComponent {
     requiresPrescription: false,
     storageConditions: undefined,
     minStockLevel: 10,
-    maxStockLevel: undefined
+    maxStockLevel: undefined,
+    unitCost: undefined,
+    sellingPrice: undefined
   };
 
   submitting = false;
@@ -173,7 +203,9 @@ export class CreateProductDialogComponent {
       requiresPrescription: this.product.requiresPrescription,
       storageConditions: this.product.storageConditions?.trim() || undefined,
       minStockLevel: this.product.minStockLevel,
-      maxStockLevel: this.product.maxStockLevel
+      maxStockLevel: this.product.maxStockLevel,
+      unitCost: this.product.unitCost ?? undefined,
+      sellingPrice: this.product.sellingPrice ?? undefined
     };
 
     this.submitting = true;

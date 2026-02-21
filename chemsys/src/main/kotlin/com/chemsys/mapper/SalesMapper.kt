@@ -50,8 +50,8 @@ class SalesMapper {
             returnStatus = sale.returnStatus,
             isCreditSale = sale.isCreditSale,
             lineItems = sale.lineItems.map { toSaleLineItemDto(it) },
-            payments = sale.payments.map { toSalePaymentDto(it) }
-
+            payments = sale.payments.map { toSalePaymentDto(it) },
+            commission = null
         )
     }
 
@@ -158,7 +158,7 @@ class SalesMapper {
         return Customer(
             customerNumber = customerNumber,
             firstName = request.firstName,
-            lastName = request.lastName,
+            lastName = request.lastName?.trim()?.takeIf { it.isNotBlank() } ?: "",
             phone = request.phone,
             email = null,
             dateOfBirth = null,
@@ -250,9 +250,10 @@ class SalesMapper {
      * Converts a Page of Sale entities to SalesListResponse.
      * 
      * @param salesPage The page of sale entities
+     * @param totalFilteredAmount Optional sum of totalAmount for all sales matching the filter (across all pages)
      * @return SalesListResponse with pagination information
      */
-    fun toSalesListResponse(salesPage: org.springframework.data.domain.Page<Sale>): SalesListResponse {
+    fun toSalesListResponse(salesPage: org.springframework.data.domain.Page<Sale>, totalFilteredAmount: java.math.BigDecimal? = null): SalesListResponse {
         return SalesListResponse(
             sales = toSaleDtoList(salesPage.content),
             totalElements = salesPage.totalElements,
@@ -260,7 +261,8 @@ class SalesMapper {
             currentPage = salesPage.number,
             pageSize = salesPage.size,
             hasNext = salesPage.hasNext(),
-            hasPrevious = salesPage.hasPrevious()
+            hasPrevious = salesPage.hasPrevious(),
+            totalFilteredAmount = totalFilteredAmount
         )
     }
 
@@ -297,7 +299,7 @@ class SalesMapper {
             productName = product.name,
             barcode = product.barcode ?: "",
             availableInventory = availableInventory.map { toInventoryItemDto(it) },
-            sellingPrice = availableInventory.firstOrNull()?.sellingPrice,
+            sellingPrice = product.sellingPrice ?: availableInventory.firstOrNull()?.sellingPrice,
             requiresPrescription = product.requiresPrescription
         )
     }
@@ -309,13 +311,14 @@ class SalesMapper {
      * @return InventoryItemDto representation of the inventory item
      */
     fun toInventoryItemDto(inventory: Inventory): InventoryItemDto {
+        val product = inventory.product
         return InventoryItemDto(
             inventoryId = inventory.id!!,
             batchNumber = inventory.batchNumber,
             expiryDate = inventory.expiryDate,
             quantity = inventory.quantity,
-            unitCost = inventory.unitCost,
-            sellingPrice = inventory.sellingPrice
+            unitCost = product.unitCost ?: inventory.unitCost,
+            sellingPrice = product.sellingPrice ?: inventory.sellingPrice
         )
     }
 

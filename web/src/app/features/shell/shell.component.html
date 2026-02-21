@@ -1,20 +1,46 @@
 <div class="h-screen w-screen bg-gray-50">
-  <div class="grid grid-cols-1 md:grid-cols-[auto_1fr] grid-rows-[64px_1fr_44px] h-full">    <!-- Sidebar (desktop) -->
+  <!-- No branch assigned: block navigation for CASHIER/MANAGER with no branch assignment -->
+  <div *ngIf="hasNoBranchAssignment()" class="h-full flex flex-col items-center justify-center p-8">
+    <div class="max-w-md text-center space-y-6">
+      <div class="h-16 w-16 mx-auto rounded-full bg-brand-sky/20 flex items-center justify-center">
+        <mat-icon fontIcon="store" class="text-4xl text-brand-sky">store</mat-icon>
+      </div>
+      <div>
+        <h1 class="text-2xl font-semibold text-gray-900 mb-2">No Branch Assigned</h1>
+        <p class="text-gray-600">You do not have a branch assignment yet. Please contact your administrator to assign you to a branch before you can use the system.</p>
+      </div>
+      <button mat-raised-button color="primary" (click)="onLogout()" class="!bg-brand-coral hover:!bg-brand-coral/90">
+        <mat-icon fontIcon="logout" class="mr-2"></mat-icon>
+        Sign Out
+      </button>
+    </div>
+  </div>
+
+  <!-- Normal shell layout -->
+  <div *ngIf="!hasNoBranchAssignment()" class="grid grid-cols-1 md:grid-cols-[auto_1fr] grid-rows-[64px_1fr_44px] h-full">    <!-- Sidebar (desktop) -->
     <aside
-      class="hidden md:block col-[1] row-[1/_span_3] border-r border-gray-200 bg-white transition-all duration-300 ease-in-out overflow-hidden flex flex-col"
+      class="hidden md:flex md:flex-col col-[1] row-[1/_span_3] border-r border-gray-200 bg-white transition-all duration-300 ease-in-out overflow-hidden"
       [style.width]="isCollapsed() ? '72px' : '280px'"
       (mouseenter)="isCollapsed.set(false)"
       (mouseleave)="isCollapsed.set(true)"
     >
-      <div class="h-16 flex items-center gap-3 px-5 border-b border-gray-200 overflow-hidden whitespace-nowrap">
-        <div class="h-8 w-8 shrink-0 rounded-xl bg-brand-coral"></div>
-        <div class="font-semibold transition-opacity duration-300" [class.opacity-0]="isCollapsed()">
-          saam POS
+      <div class="h-16 flex-shrink-0 flex items-center gap-3 px-5 border-b border-gray-200 overflow-hidden whitespace-nowrap">
+        <!-- Wordmark Logo: s a a m -->
+        <div class="flex items-center gap-1 shrink-0">
+          <span class="text-2xl font-bold text-brand-coral transition-opacity duration-300" [class.opacity-0]="isCollapsed()">s</span>
+          <span class="text-2xl font-bold text-brand-sky transition-opacity duration-300" [class.opacity-0]="isCollapsed()">a</span>
+          <span class="text-2xl font-bold text-brand-mint transition-opacity duration-300" [class.opacity-0]="isCollapsed()">a</span>
+          <span class="text-2xl font-bold text-brand-coral transition-opacity duration-300" [class.opacity-0]="isCollapsed()">m</span>
+        </div>
+        <!-- POS label - only when expanded -->
+        <div class="font-semibold text-gray-700 transition-opacity duration-300" [class.opacity-0]="isCollapsed()">
+          POS
         </div>
       </div>
 
-      <nav class="p-4 space-y-6 text-sm overflow-y-auto flex-1 custom-scrollbar">
-        <div>
+      <nav class="flex-1 min-h-0 p-4 space-y-5 text-sm overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <!-- General -->
+        <div class="shrink-0">
           <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px] transition-opacity duration-300 whitespace-nowrap" [class.opacity-0]="isCollapsed()">
             General
           </div>
@@ -29,9 +55,10 @@
           </ul>
         </div>
 
-        <div>
+        <!-- Sales & Revenue -->
+        <div class="shrink-0">
           <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px] transition-opacity duration-300 whitespace-nowrap" [class.opacity-0]="isCollapsed()">
-            Tools
+            Sales & Revenue
           </div>
           <ul class="mt-2 space-y-1">
             <li>
@@ -41,50 +68,46 @@
                 <span *ngIf="!isCollapsed()" class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-mint/60 text-gray-700">Live</span>
               </a>
             </li>
-
             <li>
               <a routerLink="/sales" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition whitespace-nowrap">
                 <mat-icon fontIcon="receipt_long" class="opacity-60 shrink-0"></mat-icon>
                 <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Sales</span>
               </a>
             </li>
-
             <li>
               <a routerLink="/customers" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition whitespace-nowrap">
                 <mat-icon fontIcon="people" class="opacity-60 shrink-0"></mat-icon>
                 <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Customers</span>
               </a>
             </li>
-
-            <li>
-              <a routerLink="/sales-reports" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition whitespace-nowrap">
-                <mat-icon fontIcon="analytics" class="opacity-60 shrink-0"></mat-icon>
-                <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Sales Reports</span>
-              </a>
-            </li>
-
             <li>
               <a routerLink="/credit-management" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition whitespace-nowrap">
                 <mat-icon fontIcon="credit_card" class="opacity-60 shrink-0"></mat-icon>
                 <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Credit Management</span>
               </a>
             </li>
-
             <li>
+              <a routerLink="/expenses" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition whitespace-nowrap">
+                <mat-icon fontIcon="receipt" class="opacity-60 shrink-0"></mat-icon>
+                <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Expenses</span>
+              </a>
+            </li>
+            <li *ngIf="isAdmin">
               <a routerLink="/reports" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition whitespace-nowrap">
                 <mat-icon fontIcon="assessment" class="opacity-60 shrink-0"></mat-icon>
                 <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Reports</span>
-              </a>
-            </li>
-
-            <li *ngIf="isAdmin">
-              <a routerLink="/branches" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition whitespace-nowrap">
-                <mat-icon fontIcon="store" class="opacity-60 shrink-0"></mat-icon>
-                <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Branches</span>
                 <span *ngIf="!isCollapsed()" class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
               </a>
             </li>
+          </ul>
+        </div>
 
+        <!-- Inventory & Admin -->
+        <div class="shrink-0">
+          <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px] transition-opacity duration-300 whitespace-nowrap" [class.opacity-0]="isCollapsed()">
+            Inventory & Admin
+          </div>
+          <ul class="mt-2 space-y-1">
             <li *ngIf="isAdmin">
               <a routerLink="/products" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition whitespace-nowrap">
                 <mat-icon fontIcon="inventory" class="opacity-60 shrink-0"></mat-icon>
@@ -92,15 +115,19 @@
                 <span *ngIf="!isCollapsed()" class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
               </a>
             </li>
-
-            <li *ngIf="isAdmin">
+            <li>
               <a routerLink="/inventory" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition whitespace-nowrap">
                 <mat-icon fontIcon="warehouse" class="opacity-60 shrink-0"></mat-icon>
                 <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Inventory</span>
-                <span *ngIf="!isCollapsed()" class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
               </a>
             </li>
-
+            <li *ngIf="canAccessBranches">
+              <a routerLink="/branches" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition whitespace-nowrap">
+                <mat-icon fontIcon="store" class="opacity-60 shrink-0"></mat-icon>
+                <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Branches</span>
+                <span *ngIf="!isCollapsed()" class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">{{ isAdmin ? 'Admin' : 'Manager' }}</span>
+              </a>
+            </li>
             <li *ngIf="isAdmin">
               <a routerLink="/users" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition whitespace-nowrap">
                 <mat-icon fontIcon="group" class="opacity-60 shrink-0"></mat-icon>
@@ -111,7 +138,8 @@
           </ul>
         </div>
 
-        <div>
+        <!-- Procurement -->
+        <div class="shrink-0">
           <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px] transition-opacity duration-300 whitespace-nowrap" [class.opacity-0]="isCollapsed()">
             Procurement
           </div>
@@ -133,15 +161,23 @@
           </ul>
         </div>
 
-        <div>
+        <!-- Support -->
+        <div class="shrink-0">
           <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px] transition-opacity duration-300 whitespace-nowrap" [class.opacity-0]="isCollapsed()">
             Support
           </div>
           <ul class="mt-2 space-y-1">
-            <li>
+            <li *ngIf="isAdmin">
               <a routerLink="/settings" routerLinkActive="!bg-brand-coral/20 !text-gray-900 !border-brand-coral" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-coral/10 border border-transparent hover:border-brand-coral transition whitespace-nowrap">
                 <mat-icon fontIcon="settings" class="opacity-60 shrink-0"></mat-icon>
                 <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">Settings</span>
+                <span *ngIf="!isCollapsed()" class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
+              </a>
+            </li>
+            <li *ngIf="aiAdvisorEnabled">
+              <a routerLink="/ai-chat" routerLinkActive="!bg-brand-coral/20 !text-gray-900 !border-brand-coral" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-coral/10 border border-transparent hover:border-brand-coral transition whitespace-nowrap">
+                <mat-icon fontIcon="smart_toy" class="opacity-60 shrink-0"></mat-icon>
+                <span class="transition-opacity duration-300" [class.opacity-0]="isCollapsed()">AI Advisor</span>
               </a>
             </li>
             <li>
@@ -155,43 +191,77 @@
       </nav>
     </aside>
     <!-- Top bar -->
-    <header class="col-[1] md:col-[2] row-[1] h-16 border-b border-gray-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-4 md:px-8">
+    <header class="col-[1] md:col-[2] row-[1] h-14 sm:h-16 border-b border-gray-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-3 sm:px-4 md:px-8">
       <!-- Left section -->
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+
         <!-- Hamburger on mobile -->
-        <button type="button" class="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors" (click)="toggleSidebar()" aria-label="Toggle menu">
-          <mat-icon fontIcon="menu" class="text-gray-600"></mat-icon>
+
+        <button type="button" class="md:hidden inline-flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors flex-shrink-0" (click)="toggleSidebar()" aria-label="Toggle menu">
+          <mat-icon fontIcon="menu" class="text-gray-600 text-lg sm:text-base"></mat-icon>
         </button>
+        <!-- Wordmark when sidebar is collapsed (desktop only) -->
+        <a routerLink="/dashboard" routerLinkActive="!bg-brand-sky/20" class="inline-flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-gray-200 hover:bg-gray-50 hover:border-brand-sky/40 transition-colors" aria-label="Dashboard">
+          <mat-icon fontIcon="home" class="text-gray-600 text-lg"></mat-icon>
+        </a>
+
+
+
+        <!-- Unified Branch Indicator (Left side) - Responsive -->
+        <div class="flex items-center gap-2 min-w-0 flex-1 sm:flex-initial">
+          <!-- Branch with Selector (Admin only - can change) -->
+          <div *ngIf="isAdmin" class="flex items-center gap-2 min-w-0">
+            <app-branch-selector class="flex-shrink-0"></app-branch-selector>
+          </div>
+
+          <!-- Branch Info Display (Cashier - read-only) -->
+          <div *ngIf="isCashier && currentBranch()" class="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-brand-mint/20 rounded-lg border border-brand-mint/30 flex-shrink-0">
+            <mat-icon class="text-brand-mint text-sm sm:text-base">store</mat-icon>
+            <div class="text-xs sm:text-sm min-w-0">
+              <div class="font-medium text-gray-900 truncate">{{ currentBranch()?.name }}</div>
+              <div class="text-xs text-gray-600 truncate hidden sm:block">{{ currentBranch()?.location }}</div>
+            </div>
+          </div>
+
+          <!-- No Branch Selected (Cashier) -->
+          <div *ngIf="isCashier && !currentBranch()" class="flex items-center gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-orange-50 rounded-lg border border-orange-200 flex-shrink-0">
+            <mat-icon class="text-orange-500 text-sm sm:text-base">warning</mat-icon>
+            <div class="text-xs sm:text-sm text-orange-700">
+              <div class="font-medium">No Branch</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Right section -->
-      <div class="flex items-center gap-3">
-        <!-- Branch Selector -->
-        <app-branch-selector></app-branch-selector>
+      <div class="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+
+        <!-- Dashboard (icon only) -->
+
 
         <!-- New Sale button -->
-        <button routerLink="/pos" class="hidden sm:inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-coral to-brand-coral/90 px-4 py-2.5 text-sm font-medium text-white hover:from-brand-coral/90 hover:to-brand-coral/80 transition-all duration-200 shadow-sm hover:shadow-md">
+
+
+        <!-- Mobile New Sale button (icon only) -->
+        <a routerLink="/pos" class="sm:hidden inline-flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-r from-brand-coral to-brand-coral/90 text-white hover:from-brand-coral/90 hover:to-brand-coral/80 transition-all duration-200 shadow-sm">
           <mat-icon fontIcon="add" class="text-base"></mat-icon>
-          New Sale
-        </button>
+        </a>
 
-        <!-- Notifications -->
-        <button class="relative inline-flex items-center justify-center h-10 w-10 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
-          <mat-icon fontIcon="notifications" class="text-gray-600"></mat-icon>
-          <span class="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-brand-coral border-2 border-white"></span>
-        </button>
-
-        <!-- User profile -->
-        <div class="flex items-center gap-3">
-          <button class="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition-colors" (click)="onLogout()">
-            <mat-icon fontIcon="logout" class="opacity-60 text-base"></mat-icon>
-            <span class="hidden sm:inline">Logout</span>
+        <!-- Notification center: opens Material bottom sheet -->
+        <div class="relative">
+          <button
+            type="button"
+            (click)="openNotificationSheet()"
+            class="relative inline-flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+            aria-label="Notifications">
+            <mat-icon fontIcon="notifications" class="text-gray-600 text-lg sm:text-base"></mat-icon>
+            <span *ngIf="notificationBadgeCount() > 0" class="absolute -top-1 -right-1 min-w-[18px] h-4 px-1 rounded-full bg-brand-coral text-white text-xs font-medium flex items-center justify-center border-2 border-white">{{ notificationBadgeCount() }}</span>
+            <span *ngIf="notificationBadgeCount() === 0" class="absolute -top-1 -right-1 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-gray-300 border-2 border-white"></span>
           </button>
-          <div class="relative">
-            <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-coral to-brand-coral/80 ring-2 ring-brand-coral/20 shadow-sm"></div>
-            <div class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-white"></div>
-          </div>
         </div>
+
+        <!-- User profile (includes Log out in dropdown) -->
+        <app-user-profile></app-user-profile>
       </div>
     </header>
 
@@ -202,7 +272,14 @@
 
     <!-- Footer -->
     <footer class="col-[1] md:col-[2] row-[3] h-11 border-t border-gray-200 bg-white flex items-center justify-between px-4 md:px-6 text-xs text-gray-500">
-      <div>© {{ year }} SaamPOS</div>
+      <div class="flex items-center gap-1">
+        <span>© {{ year }}</span>
+        <span class="font-bold text-brand-coral">s</span>
+        <span class="font-bold text-brand-sky">a</span>
+        <span class="font-bold text-brand-mint">a</span>
+        <span class="font-bold text-brand-coral">m</span>
+        <span>POS</span>
+      </div>
       <div class="inline-flex items-center gap-2">
         <span class="h-2 w-2 rounded-full bg-brand-coral"></span>
         <span class="text-brand-coral">Modern Point of Sale System</span>
@@ -213,15 +290,20 @@
   <!-- Mobile sidebar overlay -->
   <div *ngIf="sidebarOpen()" class="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true">
     <div class="absolute inset-0 bg-black/30" (click)="closeSidebar()"></div>
-    <div class="absolute inset-y-0 left-0 w-72 bg-white shadow-xl border-r border-gray-200 p-0">
-      <div class="h-16 flex items-center gap-3 px-5 border-b border-gray-200">
-        <div class="h-8 w-8 rounded-xl bg-brand-coral"></div>
-        <div class="font-semibold">SaamPOS</div>
+    <div class="absolute inset-y-0 left-0 w-72 max-w-[85vw] flex flex-col bg-white shadow-xl border-r border-gray-200">
+      <div class="h-16 flex-shrink-0 flex items-center gap-3 px-5 border-b border-gray-200">
+        <div class="flex items-center gap-1">
+          <span class="text-2xl font-bold text-brand-coral">s</span>
+          <span class="text-2xl font-bold text-brand-sky">a</span>
+          <span class="text-2xl font-bold text-brand-mint">a</span>
+          <span class="text-2xl font-bold text-brand-coral">m</span>
+        </div>
+        <div class="font-semibold text-gray-700">POS</div>
         <button type="button" class="ml-auto inline-flex items-center justify-center h-8 w-8 rounded-lg border border-gray-200" (click)="closeSidebar()" aria-label="Close menu">
           <mat-icon fontIcon="close"></mat-icon>
         </button>
       </div>
-      <nav class="p-4 space-y-6 text-sm">
+      <nav class="flex-1 min-h-0 p-4 pb-6 space-y-5 text-sm overflow-y-auto overflow-x-hidden custom-scrollbar">
         <div>
           <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px]">General</div>
           <ul class="mt-2 space-y-1">
@@ -235,7 +317,7 @@
           </ul>
         </div>
         <div>
-          <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px]">Tools</div>
+          <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px]">Sales & Revenue</div>
           <ul class="mt-2 space-y-1">
             <li>
               <a routerLink="/pos" (click)="closeSidebar()" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition">
@@ -257,28 +339,47 @@
               </a>
             </li>
             <li>
-              <a routerLink="/sales-reports" (click)="closeSidebar()" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition">
-                <mat-icon fontIcon="analytics" class="opacity-60"></mat-icon>
-                Sales Reports
-              </a>
-            </li>
-            <li>
               <a routerLink="/credit-management" (click)="closeSidebar()" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition">
                 <mat-icon fontIcon="credit_card" class="opacity-60"></mat-icon>
                 Credit Management
               </a>
             </li>
             <li>
-              <a routerLink="/reports" (click)="closeSidebar()" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition">
-                <mat-icon fontIcon="assessment" class="opacity-60"></mat-icon>
-                Reports
+              <a routerLink="/expenses" (click)="closeSidebar()" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition">
+                <mat-icon fontIcon="receipt" class="opacity-60"></mat-icon>
+                Expenses
               </a>
             </li>
             <li *ngIf="isAdmin">
+              <a routerLink="/reports" (click)="closeSidebar()" routerLinkActive="!bg-brand-mint/20 !text-gray-900 !border-brand-mint" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-mint/20 border border-transparent hover:border-brand-mint transition">
+                <mat-icon fontIcon="assessment" class="opacity-60"></mat-icon>
+                Reports
+                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px]">Inventory & Admin</div>
+          <ul class="mt-2 space-y-1">
+            <li *ngIf="isAdmin">
+              <a routerLink="/products" (click)="closeSidebar()" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition">
+                <mat-icon fontIcon="inventory" class="opacity-60"></mat-icon>
+                Products
+                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
+              </a>
+            </li>
+            <li>
+              <a routerLink="/inventory" (click)="closeSidebar()" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition">
+                <mat-icon fontIcon="warehouse" class="opacity-60"></mat-icon>
+                Inventory
+              </a>
+            </li>
+            <li *ngIf="canAccessBranches">
               <a routerLink="/branches" (click)="closeSidebar()" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition">
                 <mat-icon fontIcon="store" class="opacity-60"></mat-icon>
                 Branches
-                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
+                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">{{ isAdmin ? 'Admin' : 'Manager' }}</span>
               </a>
             </li>
             <li *ngIf="isAdmin">
@@ -291,17 +392,49 @@
           </ul>
         </div>
         <div>
-          <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px]">Support</div>
+          <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px]">Procurement</div>
           <ul class="mt-2 space-y-1">
-            <li>
-              <a routerLink="/settings" (click)="closeSidebar()" routerLinkActive="!bg-brand-coral/20 !text-gray-900 !border-brand-coral" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-coral/10 border border-transparent hover:border-brand-coral transition">
-                <mat-icon fontIcon="settings" class="opacity-60"></mat-icon>
-                Settings
+            <li *ngIf="isAdmin">
+              <a routerLink="/suppliers" (click)="closeSidebar()" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition">
+                <mat-icon fontIcon="business" class="opacity-60"></mat-icon>
+                Suppliers
+                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
+              </a>
+            </li>
+            <li *ngIf="isAdmin">
+              <a routerLink="/purchase-orders" (click)="closeSidebar()" routerLinkActive="!bg-brand-sky/20 !text-gray-900 !border-brand-sky" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-sky/10 border border-transparent transition">
+                <mat-icon fontIcon="receipt_long" class="opacity-60"></mat-icon>
+                Purchase Orders
+                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
               </a>
             </li>
           </ul>
         </div>
-        <div class="pt-2 border-t border-gray-200 mt-2">
+        <div>
+          <div class="px-2 text-gray-400 uppercase tracking-wide text-[11px]">Support</div>
+          <ul class="mt-2 space-y-1">
+            <li *ngIf="isAdmin">
+              <a routerLink="/settings" (click)="closeSidebar()" routerLinkActive="!bg-brand-coral/20 !text-gray-900 !border-brand-coral" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-coral/10 border border-transparent hover:border-brand-coral transition">
+                <mat-icon fontIcon="settings" class="opacity-60"></mat-icon>
+                Settings
+                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-brand-sky/40 text-gray-700">Admin</span>
+              </a>
+            </li>
+            <li *ngIf="aiAdvisorEnabled">
+              <a routerLink="/ai-chat" (click)="closeSidebar()" routerLinkActive="!bg-brand-coral/20 !text-gray-900 !border-brand-coral" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-coral/10 border border-transparent hover:border-brand-coral transition">
+                <mat-icon fontIcon="smart_toy" class="opacity-60"></mat-icon>
+                AI Advisor
+              </a>
+            </li>
+            <li>
+              <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-coral/10 border border-transparent hover:border-brand-coral transition cursor-pointer" (click)="closeSidebar()">
+                <mat-icon fontIcon="help" class="opacity-60"></mat-icon>
+                Help
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div class="pt-2 border-t border-gray-200 mt-2 shrink-0">
           <button class="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm hover:bg-gray-50 transition" (click)="onLogout()">
             <mat-icon fontIcon="logout" class="opacity-60"></mat-icon>
             Logout

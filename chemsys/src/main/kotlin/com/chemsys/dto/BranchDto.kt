@@ -63,6 +63,12 @@ data class RemoveUserFromBranchRequest(
     val branchId: UUID
 )
 
+data class UpdateUserBranchPrimaryRequest(
+    val userId: UUID,
+    val branchId: UUID,
+    val isPrimary: Boolean
+)
+
 data class UserBranchAssignmentDto(
     val userId: UUID,
     val username: String,

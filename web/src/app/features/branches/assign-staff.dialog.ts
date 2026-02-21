@@ -30,7 +30,7 @@ export interface AssignStaffDialogData {
     MatCheckboxModule
   ],
   template: `
-  <div class="">
+  <div class="max-w-[560px] w-full max-h-[90vh] flex flex-col">
     <div class="px-5 pt-5">
       <div class="h-1.5 w-16 rounded-full bg-gradient-to-r from-brand-coral to-brand-sky mb-4"></div>
       <h2 class="text-2xl font-semibold">Assign Staff to {{ data.branch.name }}</h2>
@@ -66,10 +66,10 @@ export interface AssignStaffDialogData {
             </div>
           </div>
 
-          <!-- Primary Branch Selection -->
-          <div *ngIf="isUserAssigned(user.id)" class="flex items-center gap-2">
+          <!-- Primary Branch: show when assigned or when there is a pending assign (so user can set primary while assigning) -->
+          <div *ngIf="isUserAssigned(user.id) || hasPendingAssign(user.id)" class="flex items-center gap-2">
             <mat-checkbox
-              [checked]="isUserPrimaryBranch(user.id)"
+              [checked]="getPrimaryChecked(user.id)"
               (change)="setPrimaryBranch(user.id, $event.checked)"
               color="primary">
             </mat-checkbox>
@@ -84,28 +84,7 @@ export interface AssignStaffDialogData {
       </div>
 
       <!-- Current Assignments -->
-      <div *ngIf="currentAssignments.length > 0" class="border-t pt-4">
-        <h3 class="font-medium text-gray-900 mb-3">Currently Assigned Staff</h3>
-        <div class="space-y-2">
-          <div *ngFor="let assignment of currentAssignments"
-               class="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-            <div class="flex items-center gap-2">
-              <span class="font-medium">{{ getUserName(assignment.userId) }}</span>
-              <span *ngIf="assignment.isPrimary"
-                    class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-brand-sky/20 text-brand-sky">
-                <mat-icon class="text-xs">star</mat-icon>
-                Primary
-              </span>
-            </div>
-            <button
-              mat-icon-button
-              (click)="removeUserAssignment(assignment.userId)"
-              class="text-brand-coral hover:bg-brand-coral/10">
-              <mat-icon>remove_circle</mat-icon>
-            </button>
-          </div>
-        </div>
-      </div>
+
 
       <div class="pt-2 grid grid-cols-2 gap-3">
         <button mat-stroked-button type="button" (click)="close()">Cancel</button>
@@ -174,51 +153,54 @@ export class AssignStaffDialogComponent implements OnInit {
     return this.currentAssignments.some(a => a.userId === userId);
   }
 
-  isUserPrimaryBranch(userId: string): boolean {
+  /** True if there is a pending 'assign' action for this user (so we show Primary checkbox before Apply). */
+  hasPendingAssign(userId: string): boolean {
+    return this.pendingChanges.some(c => c.userId === userId && c.action === 'assign');
+  }
+
+  /** Current primary state: from pending assign if any, otherwise from existing assignment. */
+  getPrimaryChecked(userId: string): boolean {
+    const pending = this.pendingChanges.find(c => c.userId === userId);
+    if (pending?.action === 'assign') return pending.isPrimary ?? false;
+    if (pending?.action === 'setPrimary') return pending.isPrimary ?? false;
     return this.currentAssignments.some(a => a.userId === userId && a.isPrimary);
   }
 
   toggleUserAssignment(user: UserManagementDto, isAssigned: boolean) {
-    console.log('Toggling user assignment:', user.username, 'isAssigned:', isAssigned);
-
     // Remove any existing pending changes for this user
     this.pendingChanges = this.pendingChanges.filter(change => change.userId !== user.id);
 
     if (isAssigned) {
-      // Assign user to branch
       this.pendingChanges.push({
         userId: user.id,
         action: 'assign',
-        isPrimary: this.isUserPrimaryBranch(user.id)
+        isPrimary: false
       });
-      console.log('Added assign action for user:', user.username);
     } else {
-      // Remove user from branch
       this.pendingChanges.push({
         userId: user.id,
         action: 'remove'
       });
-      console.log('Added remove action for user:', user.username);
     }
-
-    console.log('Current pending changes:', this.pendingChanges);
   }
 
+  /** Update primary for this branch: either on the pending assign or add/update setPrimary for already-assigned user. */
   setPrimaryBranch(userId: string, isPrimary: boolean) {
-    // Remove any existing pending changes for this user
-    this.pendingChanges = this.pendingChanges.filter(change => change.userId !== userId);
-
-    // If setting as primary, we need to reassign
+    const pendingAssign = this.pendingChanges.find(c => c.userId === userId && c.action === 'assign');
+    if (pendingAssign) {
+      pendingAssign.isPrimary = isPrimary;
+      return;
+    }
+    // Already assigned: add or update setPrimary so we call updateUserBranchPrimary on Apply
+    this.pendingChanges = this.pendingChanges.filter(c => !(c.userId === userId && c.action === 'setPrimary'));
     if (isPrimary) {
-      this.pendingChanges.push({
-        userId,
-        action: 'setPrimary',
-        isPrimary: true
-      });
+      this.pendingChanges.push({ userId, action: 'setPrimary', isPrimary: true });
     }
   }
 
   removeUserAssignment(userId: string) {
+    const username = this.getUserName(userId);
+    if (!confirm(`Are you sure you want to remove ${username} from this branch?`)) return;
     this.pendingChanges.push({
       userId,
       action: 'remove'
@@ -235,16 +217,9 @@ export class AssignStaffDialogComponent implements OnInit {
   }
 
   applyChanges(): void {
-    console.log('Applying changes:', this.pendingChanges);
+    if (this.pendingChanges.length === 0) return;
 
-    if (this.pendingChanges.length === 0) {
-      console.log('No changes to apply');
-      return;
-    }
-
-    // Process all pending changes
     const observables = this.pendingChanges.map(change => {
-      console.log('Processing change:', change);
       switch (change.action) {
         case 'assign':
           return this.branchesService.assignUserToBranch({
@@ -258,29 +233,19 @@ export class AssignStaffDialogComponent implements OnInit {
             branchId: this.data.branch.id
           });
         case 'setPrimary':
-          // For setting primary, we need to reassign with the new primary status
-          return this.branchesService.assignUserToBranch({
+          return this.branchesService.updateUserBranchPrimary({
             userId: change.userId,
             branchId: this.data.branch.id,
-            isPrimary: change.isPrimary || false
+            isPrimary: change.isPrimary ?? true
           });
         default:
-          console.warn('Unknown action:', change.action);
           return null;
       }
     }).filter(obs => obs !== null);
 
-    console.log('Observables to execute:', observables.length);
-
     forkJoin(observables).subscribe({
-      next: () => {
-        console.log('All changes applied successfully');
-        this.ref.close(true); // Indicate success
-      },
-      error: (error) => {
-        console.error('Error applying changes:', error);
-        // You could show an error message here
-      }
+      next: () => this.ref.close(true),
+      error: (err) => console.error('Error applying changes:', err)
     });
   }
 }

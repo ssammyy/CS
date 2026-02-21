@@ -1,825 +1,386 @@
-<div class="pos-container">
-  <!-- Header -->
-  <div class="pos-header">
-    <div class="flex items-center gap-4">
-      <h1 class="text-2xl font-semibold text-gray-900">Saam POS</h1>
-      <div class="flex items-center gap-2 text-sm" [class]="isBranchValid() ? 'text-gray-600' : 'text-red-600'">
-        <mat-icon fontIcon="store" class="text-base"></mat-icon>
-        <span>{{ branchContext.currentBranch?.name || 'No Branch Selected' }}</span>
-        <span *ngIf="!isBranchValid()" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">
-          Invalid Context
-        </span>
+<div class="pos">
+  <!-- Success overlay: reward moment after sale, then redirect to sales list -->
+  <div *ngIf="showSaleSuccess()" class="sale-success-overlay" role="alert" aria-live="polite">
+    <div class="sale-success-card">
+      <div class="sale-success-icon-wrap">
+        <mat-icon class="sale-success-icon">check_circle</mat-icon>
       </div>
+      <h2 class="sale-success-title">Sale completed!</h2>
+      <p class="sale-success-message">Congrats</p>
+      <p class="sale-success-hint">Redirecting to sales list in a moment…</p>
     </div>
-    <div class="flex items-center gap-3">
-      <!-- Draft Management -->
-      <div class="flex items-center gap-2" *ngIf="hasUnsavedChanges()">
-        <span class="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
-          Unsaved Changes
-        </span>
-        <button
-          (click)="saveCurrentDraft()"
-          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors text-sm">
-          <mat-icon fontIcon="save" class="text-sm"></mat-icon>
-          Save Draft
+  </div>
+
+  <!-- Header -->
+  <header class="pos-header-bar">
+    <div class="header-left">
+      <h1 class="pos-title">POS</h1>
+      <mat-icon class="header-branch-icon">store</mat-icon>
+      <span class="branch-badge">{{ branchContext.currentBranch?.name || 'No Branch' }}</span>
+      </div>
+    <div class="header-actions ">
+      <button mat-stroked-button (click)="clearCart(); goToStep(0)" [disabled]="cart().length === 0" color="warn">
+        Clear Sale
+      </button>
+    </div>
+  </header>
+
+  <!-- Branch Warning -->
+  <mat-card *ngIf="!isBranchValid()" class="pos-warning-card">
+    <mat-card-content class="pos-warning-content">
+      <mat-icon color="warn">warning</mat-icon>
+      <span>Select a valid branch to continue</span>
+    </mat-card-content>
+  </mat-card>
+
+  <main class="pos-main" [class.disabled]="!isBranchValid()">
+    <div class="pos-main-inner">
+    <!-- Stepper: mobile-first pill design with clear progress -->
+    <nav class="pos-stepper" role="tablist" aria-label="POS steps">
+      <button type="button" (click)="goToStep(0)" [attr.aria-current]="currentStep() === 0 ? 'step' : null"
+        [class.pos-stepper-step--active]="currentStep() === 0" [class.pos-stepper-step--done]="currentStep() > 0"
+        class="pos-stepper-step">
+        <span class="pos-stepper-num" *ngIf="currentStep() <= 0">1</span>
+        <mat-icon class="pos-stepper-check" *ngIf="currentStep() > 0">check_circle</mat-icon>
+        <span class="pos-stepper-label">Products</span>
+      </button>
+      <span class="pos-stepper-line" [class.pos-stepper-line--done]="currentStep() > 0"></span>
+      <button type="button" (click)="goToStep(1)" [attr.aria-current]="currentStep() === 1 ? 'step' : null"
+        [class.pos-stepper-step--active]="currentStep() === 1" [class.pos-stepper-step--done]="currentStep() > 1"
+        [disabled]="cart().length === 0" class="pos-stepper-step">
+        <span class="pos-stepper-num" *ngIf="currentStep() <= 1">2</span>
+        <mat-icon class="pos-stepper-check" *ngIf="currentStep() > 1">check_circle</mat-icon>
+        <span class="pos-stepper-label">Cart</span>
+      </button>
+      <span class="pos-stepper-line" [class.pos-stepper-line--done]="currentStep() > 1"></span>
+      <button type="button" (click)="goToStep(2)" [attr.aria-current]="currentStep() === 2 ? 'step' : null"
+        [class.pos-stepper-step--active]="currentStep() === 2" [disabled]="cart().length === 0"
+        class="pos-stepper-step">
+        <span class="pos-stepper-num">3</span>
+        <span class="pos-stepper-label">Checkout</span>
+      </button>
+    </nav>
+
+    <!-- Step 1: Products – mobile-optimized search and add -->
+    <section *ngIf="currentStep() === 0" class="pos-step pos-step-products">
+      <div class="pos-step-hero">
+        <h2 class="pos-step-title">Add products</h2>
+        <p class="pos-step-desc">Search by name.</p>
+      </div>
+
+        <mat-form-field  class="">
+          <mat-label>product search</mat-label>
+          <input matInput
+            [ngModel]="productSearchInput()"
+            (ngModelChange)="productSearchInput.set($event); onProductSearchChange()"
+            (keydown)="onProductSearchKeyPress($event)"
+            autocomplete="off">
+          <mat-icon matPrefix>search</mat-icon>
+          <button mat-icon-button matSuffix *ngIf="productSearchInput()" (click)="productSearchInput.set(''); clearSearchResults()" type="button" aria-label="Clear search">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+
+      <div *ngIf="showSearchResults()" class="pos-results-panel">
+        <div *ngIf="isSearching()" class="pos-results-loading">
+          <mat-spinner diameter="24"></mat-spinner>
+          <span>Searching...</span>
+        </div>
+        <div *ngIf="!isSearching() && searchResults().length === 0" class="pos-results-empty">
+          <mat-icon>inventory_2</mat-icon>
+          <span>No products found</span>
+        </div>
+        <div *ngIf="!isSearching() && searchResults().length > 0" class="pos-results-list">
+          <button type="button" *ngFor="let r of searchResults(); let i = index"
+            (click)="selectProductFromSearch(r)"
+            [class.pos-result-item--selected]="isSearchResultSelected(i)"
+            class="pos-result-item">
+            <div class="pos-result-body">
+              <span class="pos-result-name">{{ r.product.name }}</span>
+              <span *ngIf="r.product.genericName" class="pos-result-variant">{{ r.product.genericName }}</span>
+              <span *ngIf="r.hasMultipleBatches && r.inventoryItems[0]?.batchNumber" class="pos-result-batch">Batch: {{ r.inventoryItems[0].batchNumber }}</span>
+              <div class="pos-result-meta">
+                <span class="pos-result-stock">
+                  <mat-icon class="pos-result-meta-icon">inventory_2</mat-icon>
+                  {{ r.totalQuantity }} in stock
+                </span>
+                <span *ngIf="r.inventoryItems[0]?.sellingPrice" class="pos-result-price">
+                  <mat-icon class="pos-result-meta-icon">payments</mat-icon>
+                  KES {{ r.inventoryItems[0].sellingPrice | number:'1.0-0' }}
+                </span>
+              </div>
+              <div *ngIf="r.totalQuantity === 0 && r.otherBranchesBreakdown?.length" class="pos-result-infobite">
+                <mat-icon class="pos-result-infobite-icon">info</mat-icon>
+                <span>0 at your branch · <ng-container *ngFor="let b of r.otherBranchesBreakdown; let last = last">{{ b.quantity }} in {{ b.branchName }}<ng-container *ngIf="!last">, </ng-container></ng-container></span>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="cart().length > 0" class="pos-cart-preview">
+        <div class="pos-cart-preview-head">
+          <span class="pos-cart-preview-title">Total item ({{ cart().length }})</span>
+          <button type="button" class="pos-cart-preview-see-all" (click)="goToStep(1)">See all</button>
+        </div>
+        <div class="pos-cart-preview-chips">
+          <span *ngFor="let item of cart()" class="pos-cart-chip">{{ item.productName }}</span>
+        </div>
+      </div>
+<!---->
+      <div class="flex justify-between w-full rounded  p-2">
+        <div class="pos-step-footer-info">
+          <span class="pos-step-footer-count">{{ cart().length }} item{{ cart().length !== 1 ? 's' : '' }}</span>
+          <span class="pos-step-footer-total">KES {{ totalAmount() | number:'1.0-0' }}</span>
+        </div>
+        <button mat-raised-button color="primary" type="button" (click)="nextStep()" [disabled]="cart().length === 0" class="btn-continue">
+          Continue
+          <mat-icon>arrow_forward</mat-icon>
         </button>
       </div>
+    </section>
 
-      <!-- Draft Actions -->
-      <button
-        (click)="toggleCustomerForm()"
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
-        <mat-icon fontIcon="person_add" class="text-base"></mat-icon>
-        Customer
-      </button>
-      <button
-        (click)="clearCart()"
-        [disabled]="cart().length === 0"
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-        <mat-icon fontIcon="clear_all" class="text-base"></mat-icon>
-        Clear Cart
-      </button>
-    </div>
-  </div>
-
-  <!-- Branch Context Warning -->
-  <div *ngIf="!isBranchValid()" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-    <div class="flex items-center gap-3">
-      <mat-icon fontIcon="warning" class="text-red-600"></mat-icon>
-      <div>
-        <h3 class="text-sm font-medium text-red-800">Invalid Branch Context</h3>
-        <p class="text-sm text-red-600">Please select a valid branch to continue with Saam POS operations.</p>
+    <!-- Step 2: Cart – item cards with +/- qty and bill summary -->
+    <section *ngIf="currentStep() === 1" class="pos-step pos-step-cart">
+      <div class="pos-step-hero">
+        <h2 class="pos-step-title">Shopping cart</h2>
+        <p class="pos-step-desc" *ngIf="cart().length > 0">{{ cart().length }} item{{ cart().length !== 1 ? 's' : '' }} in your cart</p>
       </div>
-    </div>
-  </div>
 
-  <div class="pos-content" [class.opacity-50]="!isBranchValid()" [class.pointer-events-none]="!isBranchValid()">
-    <!-- Left Panel - Product Scanning & Cart -->
-    <div class="pos-left-panel">
-      <!-- Product Search Section -->
-      <div class="search-section">
-        <div class="search-header">
-          <mat-icon fontIcon="search" class="text-2xl text-brand-sky"></mat-icon>
-          <h2 class="text-lg font-medium text-gray-900">Search Products</h2>
-        </div>
-
-        <!-- Product Name Search -->
-        <div class="search-input-group">
-          <div class="search-input">
-            <input
-              matInput
-              [(ngModel)]="productSearchInput"
-              (ngModelChange)="onProductSearchChange()"
-              (keypress)="onProductSearchKeyPress($event)"
-              placeholder="Search by product name..."
-              class="w-full px-4 py-3 text-lg border border-gray-200 rounded-lg focus:border-brand-sky focus:ring-2 focus:ring-brand-sky/20 transition-colors">
-            <button
-              (click)="clearSearchResults()"
-              *ngIf="productSearchInput()"
-              class="clear-search-btn">
-              <mat-icon fontIcon="close" class="text-base"></mat-icon>
+      <div *ngIf="cart().length > 0" class="pos-cart-list">
+        <div *ngFor="let item of cart(); trackBy: trackCartItemById" class="pos-cart-item">
+          <div class="pos-cart-item-main">
+            <span class="pos-cart-item-name">{{ item.productName }}</span>
+            <div class="pos-cart-item-qty">
+              <button type="button" class="pos-qty-btn" (click)="decrementCartItemQuantity(item)" [attr.aria-label]="'Decrease quantity of ' + item.productName">
+                <mat-icon>remove</mat-icon>
+              </button>
+              <span class="pos-qty-value">{{ item.quantity | number:'2.0-0' }}</span>
+              <button type="button" class="pos-qty-btn" (click)="incrementCartItemQuantity(item)" [disabled]="item.quantity >= getAvailableStock(item)" [attr.aria-label]="'Increase quantity of ' + item.productName">
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+          </div>
+          <div class="pos-cart-item-right">
+            <span class="pos-cart-item-total">KES {{ (item.unitPrice * item.quantity) | number:'1.0-0' }}</span>
+            <button type="button" class="pos-cart-item-remove" (click)="removeCartItem(item.id)" aria-label="Remove from cart">
+              <mat-icon>delete_outline</mat-icon>
             </button>
           </div>
-
-          <!-- Search Results Dropdown -->
-          <div *ngIf="showSearchResults()" class="search-results">
-            <div *ngIf="isSearching()" class="search-loading">
-              <mat-icon fontIcon="hourglass_empty" class="animate-spin text-brand-sky"></mat-icon>
-              <span>Searching...</span>
-            </div>
-            <div *ngIf="!isSearching() && searchResults().length === 0" class="no-results">
-              <mat-icon fontIcon="search_off" class="text-gray-400"></mat-icon>
-              <span>No products found</span>
-            </div>
-            <div *ngIf="!isSearching() && searchResults().length > 0" class="results-list">
-              <div
-                *ngFor="let searchResult of searchResults(); let i = index"
-                [class]="'result-item' + (isSearchResultSelected(i) ? ' selected' : '')">
-
-                <!-- Product Header -->
-                <div class="product-header" (click)="selectProductFromSearch(searchResult)">
-                  <div class="product-info">
-                    <div class="product-name">{{ searchResult.product.name }}</div>
-                    <div class="product-details">
-                      <span *ngIf="searchResult.product.genericName" class="generic-name">{{ searchResult.product.genericName }}</span>
-                      <span *ngIf="searchResult.product.barcode" class="barcode">{{ searchResult.product.barcode }}</span>
-                    </div>
-                  </div>
-                  <div class="product-actions">
-                    <span *ngIf="searchResult.product.requiresPrescription" class="prescription-badge">Rx</span>
-                    <mat-icon fontIcon="add_shopping_cart" class="add-icon"></mat-icon>
-                  </div>
-                </div>
-
-                <!-- Inventory Details -->
-                <div class="inventory-section">
-                  <div class="stock-summary">
-                    <div class="stock-badge">
-                      <mat-icon fontIcon="inventory" class="stock-icon"></mat-icon>
-                      <span class="stock-text">{{ searchResult.totalQuantity }} in stock</span>
-                    </div>
-                    <span *ngIf="searchResult.hasMultipleBatches" class="batches-indicator">
-                      <mat-icon fontIcon="layers" class="batches-icon"></mat-icon>
-                      {{ searchResult.inventoryItems.length }} batches
-                    </span>
-                  </div>
-
-                  <!-- Batch Selection -->
-                  <div class="batch-selection">
-                    <div *ngIf="searchResult.hasMultipleBatches" class="batch-options">
-                      <div class="batch-options-header">
-                        <span class="select-batch-label">Select Batch:</span>
-                      </div>
-                      <div class="batch-list">
-                        <div
-                          *ngFor="let inventory of searchResult.inventoryItems; let batchIndex = index"
-                          (click)="selectBatch(i, batchIndex, $event)"
-                          [class]="'batch-option' + (searchResult.selectedBatchIndex === batchIndex ? ' selected' : '')">
-                          <div class="batch-info">
-                            <div class="batch-header">
-                              <span class="batch-number">{{ inventory.batchNumber || 'Batch ' + (batchIndex + 1) }}</span>
-                              <span class="batch-quantity">{{ inventory.quantity }} units</span>
-                            </div>
-                            <div class="batch-details">
-                              <span *ngIf="inventory.expiryDate" class="expiry-info">
-                                <mat-icon fontIcon="schedule" class="expiry-icon"></mat-icon>
-                                Expires {{ formatDate(inventory.expiryDate) }}
-                              </span>
-                              <span *ngIf="inventory.sellingPrice" class="price-info">
-                                <mat-icon fontIcon="attach_money" class="price-icon"></mat-icon>
-                                {{ formatCurrency(inventory.sellingPrice) }}
-                              </span>
-                            </div>
-                          </div>
-                          <div class="batch-selector">
-                            <mat-icon
-                              [fontIcon]="searchResult.selectedBatchIndex === batchIndex ? 'radio_button_checked' : 'radio_button_unchecked'"
-                              class="radio-icon">
-                            </mat-icon>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Single Batch Display -->
-                    <div *ngIf="!searchResult.hasMultipleBatches && searchResult.inventoryItems.length > 0" class="single-batch">
-                      <div class="batch-info">
-                        <div class="batch-header">
-                          <span class="batch-number">{{ searchResult.inventoryItems[0].batchNumber || 'Single Batch' }}</span>
-                          <span class="batch-quantity">{{ searchResult.inventoryItems[0].quantity }} units</span>
-                        </div>
-                        <div class="batch-details">
-                          <span *ngIf="searchResult.inventoryItems[0].expiryDate" class="expiry-info">
-                            <mat-icon fontIcon="schedule" class="expiry-icon"></mat-icon>
-                            Expires {{ formatDate(searchResult.inventoryItems[0].expiryDate) }}
-                          </span>
-                          <span *ngIf="searchResult.inventoryItems[0].sellingPrice" class="price-info">
-                            <mat-icon fontIcon="attach_money" class="price-icon"></mat-icon>
-                            {{ formatCurrency(searchResult.inventoryItems[0].sellingPrice) }}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Barcode Scanner -->
-<!--        <div class="scanner-section">-->
-<!--          <div class="scanner-header">-->
-<!--            <mat-icon fontIcon="qr_code_scanner" class="text-xl text-brand-mint"></mat-icon>-->
-<!--            <h3 class="text-md font-medium text-gray-900">Or Scan Barcode</h3>-->
-<!--          </div>-->
-<!--          <div class="scanner-input">-->
-<!--            <input-->
-<!--              matInput-->
-<!--              [(ngModel)]="barcodeInput"-->
-<!--              (keypress)="onBarcodeKeyPress($event)"-->
-<!--              placeholder="Scan barcode or enter product code"-->
-<!--              class="w-full px-4 py-3 text-lg border border-gray-200 rounded-lg focus:border-brand-mint focus:ring-2 focus:ring-brand-mint/20 transition-colors">-->
-<!--            <button -->
-<!--              (click)="scanBarcode()"-->
-<!--              [disabled]="!barcodeInput()"-->
-<!--              class="px-6 py-3 bg-brand-mint text-white rounded-lg hover:bg-brand-mint/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">-->
-<!--              <mat-icon fontIcon="qr_code_scanner" class="text-base"></mat-icon>-->
-<!--            </button>-->
-<!--          </div>-->
-<!--        </div>-->
-      </div>
-
-
-      <!-- Cart Items -->
-      <div class="cart-section">
-        <div class="cart-header">
-          <mat-icon fontIcon="shopping_cart" class="text-xl text-brand-coral"></mat-icon>
-          <h3 class="text-md font-medium text-gray-900">Cart Items ({{ cart().length }})</h3>
-        </div>
-
-        <div class="cart-items">
-          <div *ngFor="let item of cart(); trackBy: trackCartItemById" class="cart-item">
-            <div class="item-info">
-              <div class="item-name">{{ item.productName }}</div>
-              <div class="item-details">
-                <span class="item-price">KSh {{ item.unitPrice | number:'1.2-2' }}</span>
-                <span *ngIf="item.requiresPrescription" class="prescription-badge">Rx</span>
-              </div>
-            </div>
-            <div class="item-controls">
-              <div class="quantity-group">
-                <label class="control-label">Qty</label>
-                <input
-                  type="number"
-                  [(ngModel)]="item.quantity"
-                  (blur)="updateCartItemQuantity(item.id, item.quantity)"
-                  (keyup.enter)="onQuantityEnter($event, item.id, item.quantity)"
-                  (wheel)="$event.preventDefault()"
-                  min="1"
-                  [max]="getAvailableStock(item)"
-                  class="quantity-input"
-                  [title]="'Max available: ' + getAvailableStock(item)">
-              </div>
-              <div class="discount-group">
-                <label class="control-label">Discount</label>
-                <div class="discount-input-wrapper">
-                  <input
-                    type="number"
-                    [(ngModel)]="item.discountAmount"
-                    (blur)="updateCartItemDiscount(item.id, item.discountAmount || 0)"
-                    (keyup.enter)="updateCartItemDiscount(item.id, item.discountAmount || 0)"
-                    (wheel)="$event.preventDefault()"
-                    min="0"
-                    [max]="getMaxDiscount(item)"
-                    step="0.01"
-                    class="discount-input"
-                    [title]="'Max discount: KSh ' + getMaxDiscount(item).toFixed(2) + ' (10% of selling price)'"
-                    placeholder="0.00">
-                  <span class="discount-hint" [title]="'Max: KSh ' + getMaxDiscount(item).toFixed(2)">Max: {{ (getMaxDiscount(item)) | number:'1.2-2' }}</span>
-                </div>
-              </div>
-              <button
-                (click)="removeCartItem(item.id)"
-                class="remove-btn"
-                [title]="'Remove ' + item.productName">
-                <mat-icon fontIcon="delete" class="text-sm"></mat-icon>
-              </button>
-            </div>
-            <div class="item-total">
-              <div class="line-total-label">Line Total:</div>
-              <div class="line-total-amount">KSh {{ item.lineTotal | number:'1.2-2' }}</div>
-              <div *ngIf="item.discountAmount && item.discountAmount > 0" class="item-discount">
-                <span class="discount-text">Discount: -KSh {{ item.discountAmount | number:'1.2-2' }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div *ngIf="cart().length === 0" class="empty-cart">
-            <mat-icon fontIcon="shopping_cart" class="text-4xl text-gray-300"></mat-icon>
-            <p class="text-gray-500">No items in cart</p>
-            <p class="text-sm text-gray-400">Scan products to add them to your cart</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Panel - Payment & Totals -->
-    <div class="pos-right-panel">
-      <!-- Totals Summary -->
-      <div class="totals-section">
-        <div class="totals-header">
-          <mat-icon fontIcon="receipt" class="text-xl text-brand-sky"></mat-icon>
-          <h3 class="text-md font-medium text-gray-900">Sale Summary</h3>
-          <!-- Credit Sale Indicator -->
-          <div *ngIf="isCreditSaleActive()" class="credit-sale-badge">
-            <mat-icon fontIcon="credit_card" class="text-sm"></mat-icon>
-            <span>Credit Sale</span>
-          </div>
-        </div>
-
-        <div class="totals-breakdown">
-          <div class="total-row">
-            <span>Subtotal:</span>
-            <span>KSh {{ subtotal() | number:'1.2-2' }}</span>
-          </div>
-
-          <div class="total-row" *ngIf="discountAmount() > 0">
-            <span>Discount:</span>
-            <span class="text-green-600">-KSh {{ discountAmount() | number:'1.2-2' }}</span>
-          </div>
-          
-          <!-- Credit Sale Payment Summary -->
-          <div *ngIf="isCreditSaleActive()" class="credit-payment-summary">
-            <div class="total-row">
-              <span>Amount Paid:</span>
-              <span class="text-green-600">KSh {{ paymentAmount() | number:'1.2-2' }}</span>
-            </div>
-            <div class="total-row" *ngIf="remainingBalance() > 0">
-              <span>Remaining Balance:</span>
-              <span class="text-orange-600">KSh {{ remainingBalance() | number:'1.2-2' }}</span>
-            </div>
-          </div>
-          
-          <div class="total-row total-final">
-            <span class="font-semibold">Total:</span>
-            <span class="font-semibold text-lg">KSh {{ totalAmount() | number:'1.2-2' }}</span>
-          </div>
         </div>
       </div>
 
-      <!-- Customer Search/Creation Section -->
-      <div class="customer-section">
-        <div class="customer-header">
-          <mat-icon fontIcon="person" class="text-xl text-brand-mint"></mat-icon>
-          <h3 class="text-md font-medium text-gray-900">Customer</h3>
-          <span *ngIf="isCreditSale()" class="credit-required-badge">Required for Credit Sale</span>
+      <div *ngIf="cart().length > 0" class="pos-cart-edit-price">
+        <span class="pos-cart-edit-label">Edit price</span>
+        <div *ngFor="let item of cart(); trackBy: trackCartItemById" class="pos-cart-price-row">
+          <span class="pos-cart-price-name">{{ item.productName }}</span>
+          <mat-form-field  class="pos-cart-price-field">
+            <mat-label>KES</mat-label>
+            <input matInput type="number" [(ngModel)]="item.unitPrice" (blur)="updateCartItemPrice(item.id, item.unitPrice)" min="0" step="0.01">
+          </mat-form-field>
         </div>
-        
-        <!-- Customer Search -->
-        <div class="customer-search">
-          <div class="search-input-group">
-            <mat-icon fontIcon="search" class="search-icon"></mat-icon>
-            <input
-              matInput
-              [(ngModel)]="customerSearchInput"
-              (ngModelChange)="onCustomerSearchChange()"
-              (focus)="onCustomerSearchFocus()"
-              (blur)="onCustomerSearchBlur()"
-              (keydown)="onCustomerSearchKeydown($event)"
-              placeholder="Search by name, phone, or customer number..."
-              class="search-input"
-              autocomplete="off"
-              spellcheck="false">
-            <div class="search-actions">
-              <button 
-                *ngIf="customerSearchInput()"
-                (click)="clearCustomerSearch()"
-                class="clear-search-btn"
-                type="button">
-                <mat-icon fontIcon="close" class="text-sm"></mat-icon>
-              </button>
-              <button 
-                *ngIf="!customerSearchInput()"
-                (click)="showAdvancedSearch = !showAdvancedSearch"
-                class="advanced-search-btn"
-                type="button"
-                [class.active]="showAdvancedSearch">
-                <mat-icon fontIcon="tune" class="text-sm"></mat-icon>
-              </button>
-            </div>
-          </div>
+      </div>
 
-          <!-- Advanced Search Panel -->
-          <div *ngIf="showAdvancedSearch" class="advanced-search-panel">
-            <div class="advanced-search-header">
-              <mat-icon fontIcon="filter_list" class="text-brand-coral"></mat-icon>
-              <span>Advanced Search</span>
-            </div>
-            <div class="advanced-search-fields">
-              <div class="search-field">
-                <label>First Name</label>
-                <input
-                  matInput
-                  [(ngModel)]="advancedSearch.firstName"
-                  placeholder="First name"
-                  class="field-input">
-              </div>
-              <div class="search-field">
-                <label>Last Name</label>
-                <input
-                  matInput
-                  [(ngModel)]="advancedSearch.lastName"
-                  placeholder="Last name"
-                  class="field-input">
-              </div>
-              <div class="search-field">
-                <label>Phone Number</label>
-                <input
-                  matInput
-                  [(ngModel)]="advancedSearch.phone"
-                  placeholder="Phone number"
-                  class="field-input">
-              </div>
-              <div class="search-field">
-                <label>Customer Number</label>
-                <input
-                  matInput
-                  [(ngModel)]="advancedSearch.customerNumber"
-                  placeholder="Customer number"
-                  class="field-input">
-              </div>
-              <div class="search-field">
-                <label>Status</label>
-                <select [(ngModel)]="advancedSearch.isActive" class="field-select">
-                  <option value="">All customers</option>
-                  <option value="true">Active only</option>
-                  <option value="false">Inactive only</option>
-                </select>
-              </div>
-            </div>
-            <div class="advanced-search-actions">
-              <button 
-                (click)="performAdvancedSearch()"
-                [disabled]="isCustomerSearching()"
-                class="search-btn">
-                <mat-icon *ngIf="!isCustomerSearching()" fontIcon="search" class="text-sm"></mat-icon>
-                <mat-icon *ngIf="isCustomerSearching()" fontIcon="hourglass_empty" class="text-sm animate-spin"></mat-icon>
-                {{ isCustomerSearching() ? 'Searching...' : 'Search' }}
-              </button>
-              <button 
-                (click)="clearAdvancedSearch()"
-                class="clear-btn">
-                Clear
-              </button>
-            </div>
-          </div>
-          
-          <!-- Search Results Header -->
-          <div *ngIf="showCustomerSearchResults() && customerSearchResults().length > 0" class="search-results-header">
-            <div class="results-count">
-              <mat-icon fontIcon="people" class="text-brand-mint"></mat-icon>
-              <span>{{ customerSearchResults().length }} customer{{ customerSearchResults().length !== 1 ? 's' : '' }} found</span>
-            </div>
-            <div class="results-actions">
-              <button 
-                (click)="sortCustomerResults()"
-                class="sort-btn"
-                [title]="customerSortOrder() === 'asc' ? 'Sort A-Z' : 'Sort Z-A'">
-                <mat-icon fontIcon="sort" class="text-sm"></mat-icon>
-              </button>
-            </div>
-          </div>
-          
-          <!-- Customer Search Results -->
-          <div *ngIf="showCustomerSearchResults()" class="customer-search-results">
-            <div *ngIf="isCustomerSearching()" class="search-loading">
-              <mat-icon fontIcon="hourglass_empty" class="animate-spin text-brand-mint"></mat-icon>
-              <span>Searching customers...</span>
-            </div>
-            
-            <div *ngIf="!isCustomerSearching() && customerSearchResults().length === 0 && !hasSearched" class="search-prompt">
-              <mat-icon fontIcon="search" class="text-gray-300"></mat-icon>
-              <span>Start typing to search customers...</span>
-            </div>
-            
-            <div *ngIf="!isCustomerSearching() && customerSearchResults().length === 0 && hasSearched" class="no-results">
-              <mat-icon fontIcon="person_search" class="text-gray-400"></mat-icon>
-              <div class="no-results-content">
-                <span>No customers found</span>
-                <small>Try different search terms or create a new customer</small>
-              </div>
-            </div>
-            
-            <div *ngIf="!isCustomerSearching() && customerSearchResults().length > 0" class="customer-results-list">
-              <div 
-                *ngFor="let customer of customerSearchResults(); let i = index; trackBy: trackCustomerByFn" 
-                (click)="selectCustomer(customer)"
-                [class.selected]="selectedCustomer()?.id === customer.id"
-                class="customer-result-item">
-                <div class="customer-avatar">
-                  <mat-icon fontIcon="person" class="avatar-icon"></mat-icon>
-                </div>
-                <div class="customer-info">
-                  <div class="customer-name">
-                    {{ customer.firstName }} {{ customer.lastName }}
-                    <span *ngIf="!customer.isActive" class="inactive-badge">Inactive</span>
-                  </div>
-                  <div class="customer-details">
-                    <span *ngIf="customer.phone" class="customer-phone">
-                      <mat-icon fontIcon="phone" class="detail-icon"></mat-icon>
-                      {{ customer.phone }}
-                    </span>
-                    <span *ngIf="customer.customerNumber" class="customer-number">
-                      <mat-icon fontIcon="badge" class="detail-icon"></mat-icon>
-                      #{{ customer.customerNumber }}
-                    </span>
-                  </div>
-                  <div class="customer-meta">
-                    <span class="customer-date">Added {{ formatDate(customer.createdAt) }}</span>
-                  </div>
-                </div>
-                <div class="customer-actions">
-                  <button 
-                    (click)="selectCustomer(customer); $event.stopPropagation()"
-                    class="select-customer-btn"
-                    [class.selected]="selectedCustomer()?.id === customer.id">
-                    <mat-icon *ngIf="selectedCustomer()?.id !== customer.id" fontIcon="add" class="text-sm"></mat-icon>
-                    <mat-icon *ngIf="selectedCustomer()?.id === customer.id" fontIcon="check" class="text-sm"></mat-icon>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div *ngIf="cart().length === 0" class="pos-cart-empty">
+        <mat-icon>shopping_cart</mat-icon>
+        <p>Cart is empty</p>
+        <button mat-stroked-button color="primary" type="button" (click)="goToStep(0)">Add products</button>
+      </div>
+
+      <div *ngIf="cart().length > 0" class="pos-bill-summary">
+        <div class="pos-bill-row">
+          <span>Sub total</span>
+          <span>KES {{ totalAmount() | number:'1.0-0' }}</span>
         </div>
-        
-        <!-- Selected Customer Display -->
-        <div *ngIf="selectedCustomer()" class="selected-customer">
-          <div class="selected-customer-info">
-            <mat-icon fontIcon="person" class="customer-icon"></mat-icon>
-            <div class="customer-details">
-              <div class="customer-name">{{ selectedCustomer()!.firstName }} {{ selectedCustomer()!.lastName }}</div>
-              <div class="customer-meta">
-                <span *ngIf="selectedCustomer()!.phone">{{ selectedCustomer()!.phone }}</span>
-                <span *ngIf="selectedCustomer()!.customerNumber">#{{ selectedCustomer()!.customerNumber }}</span>
-              </div>
-            </div>
-          </div>
-          <button 
-            (click)="clearSelectedCustomer()"
-            class="remove-customer-btn">
-            <mat-icon fontIcon="close" class="text-sm"></mat-icon>
+        <div class="pos-bill-row pos-bill-row--total">
+          <span>Total</span>
+          <span class="pos-bill-total">KES {{ totalAmount() | number:'1.0-0' }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="cart().length > 0" class="pos-step-footer flex justify-between">
+        <button mat-stroked-button color="primary" type="button" (click)="prevStep()" class="btn-back">
+          <mat-icon>arrow_back</mat-icon>
+          Back
+        </button>
+        <button mat-raised-button color="primary" type="button" (click)="nextStep()" class="btn-primary-action">
+          Checkout
+          <mat-icon>arrow_forward</mat-icon>
+        </button>
+      </div>
+    </section>
+
+    <!-- Step 3: Checkout – form left, sale summary right on desktop -->
+    <section *ngIf="currentStep() === 2" class="pos-checkout">
+      <div class="pos-checkout-hero">
+        <h2 class="pos-checkout-title">Checkout</h2>
+        <p class="pos-checkout-desc">Customer, payment method and confirm.</p>
+      </div>
+
+      <div class="pos-checkout-layout">
+        <div class="pos-checkout-form">
+        <!-- Customer (collapsible) -->
+        <div class="pos-checkout-block pos-checkout-customer">
+          <button type="button" class="pos-checkout-block-head" (click)="customerDrawerExpanded.set(!customerDrawerExpanded())" [attr.aria-expanded]="customerDrawerExpanded()">
+            <mat-icon>person</mat-icon>
+            <span class="pos-checkout-block-title">Customer</span>
+            <span class="pos-checkout-block-summary" *ngIf="selectedCustomer() && !customerDrawerExpanded()">
+              {{ selectedCustomer()!.firstName }} {{ selectedCustomer()!.lastName }}
+            </span>
+            <span class="pos-checkout-block-spacer"></span>
+            <mat-icon class="pos-checkout-block-chevron">{{ customerDrawerExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
           </button>
-        </div>
-        
-        <!-- Create New Customer Form -->
-        <div *ngIf="showCreateCustomerForm()" class="create-customer-form">
-          <div class="form-header">
-            <mat-icon fontIcon="person_add" class="text-brand-coral"></mat-icon>
-            <h4 class="text-sm font-medium text-gray-900">Create New Customer</h4>
-          </div>
-          
-          <div class="form-fields">
-            <div class="form-row">
-              <input
-                matInput
-                [(ngModel)]="newCustomerFirstName"
-                placeholder="First Name *"
-                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-coral focus:ring-2 focus:ring-brand-coral/20 transition-colors">
-              <input
-                matInput
-                [(ngModel)]="newCustomerLastName"
-                placeholder="Last Name *"
-                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-coral focus:ring-2 focus:ring-brand-coral/20 transition-colors">
-            </div>
-            <input
-              matInput
-              [(ngModel)]="newCustomerPhone"
-              placeholder="Phone Number (optional)"
-              class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-coral focus:ring-2 focus:ring-brand-coral/20 transition-colors">
-            
-            <div class="form-actions">
-              <button 
-                (click)="createNewCustomer()"
-                [disabled]="!newCustomerFirstName().trim() || !newCustomerLastName().trim() || isCreatingCustomer()"
-                class="create-customer-btn">
-                <mat-icon *ngIf="!isCreatingCustomer()" fontIcon="add" class="text-sm"></mat-icon>
-                <mat-icon *ngIf="isCreatingCustomer()" fontIcon="hourglass_empty" class="text-sm animate-spin"></mat-icon>
-                {{ isCreatingCustomer() ? 'Creating...' : 'Create Customer' }}
-              </button>
-              <button 
-                (click)="cancelCreateCustomer()"
-                class="cancel-create-btn">
-                Cancel
+          <div class="pos-checkout-block-body" [class.is-open]="customerDrawerExpanded()">
+            <div class="customer-add-fields">
+              <mat-form-field appearance="fill" class="pos-input-field full-width">
+                <mat-label>Name</mat-label>
+                <input matInput [ngModel]="newCustomerName()" (ngModelChange)="newCustomerName.set($event)" placeholder="Customer name">
+                <mat-icon matPrefix>person</mat-icon>
+              </mat-form-field>
+              <mat-form-field appearance="fill" class="pos-input-field full-width">
+                <mat-label>Phone</mat-label>
+                <input matInput [ngModel]="newCustomerPhone()" (ngModelChange)="newCustomerPhone.set($event)" type="tel" placeholder="Phone number">
+                <mat-icon matPrefix>phone</mat-icon>
+              </mat-form-field>
+              <button mat-raised-button color="primary" type="button" (click)="createNewCustomer()" [disabled]="!newCustomerName().trim() || isCreatingCustomer()">
+                <mat-spinner *ngIf="isCreatingCustomer()" diameter="20" class="btn-spinner"></mat-spinner>
+                {{ isCreatingCustomer() ? 'Creating...' : 'Add customer' }}
               </button>
             </div>
-          </div>
-        </div>
-        
-        <!-- Customer Actions -->
-        <div *ngIf="!selectedCustomer() && !showCreateCustomerForm()" class="customer-actions">
-          <button 
-            (click)="showCreateCustomerForm.set(true)"
-            class="create-customer-action-btn">
-            <mat-icon fontIcon="person_add" class="text-sm"></mat-icon>
-            Create New Customer
-          </button>
-        </div>
-        
-        <!-- Credit Sale Info -->
-        <div *ngIf="isCreditSale() && !selectedCustomer()" class="credit-info-message">
-          <mat-icon fontIcon="info" class="text-brand-coral"></mat-icon>
-          <span>Please search for an existing customer or create a new one for this credit sale.</span>
-        </div>
-      </div>
 
-      <!-- Draft Management Section -->
-      <div class="draft-section" *ngIf="getCurrentBranchDrafts().length > 0">
-        <div class="draft-header">
-          <mat-icon fontIcon="drafts" class="text-xl text-brand-mint"></mat-icon>
-          <h3 class="text-md font-medium text-gray-900">Saved Drafts</h3>
-        </div>
+<!--            <mat-card-content>-->
+<!--              <mat-form-field class="search-field"  subscriptSizing="dynamic">-->
+<!--                <mat-label>Search customers</mat-label>-->
+<!--                <input matInput [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()" placeholder="Name, phone, or email..." />-->
+<!--                <mat-icon matPrefix>search</mat-icon>-->
+<!--              </mat-form-field>-->
+<!--            </mat-card-content>-->
 
-        <div class="draft-list">
-          <div
-            *ngFor="let draft of getCurrentBranchDrafts().slice(0, 3)"
-            class="draft-item"
-            [class.current-draft]="currentDraftId() === draft.id">
-            <div class="draft-info">
-              <div class="draft-title">
-                {{ draft.cartItems.length }} items • {{ draft.totalAmount | number:'1.2-2' }} KSh
-              </div>
-              <div class="draft-meta">
-                {{ draft.updatedAt | date:'short' }}
-                <span *ngIf="draft.isAutoSaved" class="auto-saved">Auto-saved</span>
-              </div>
-            </div>
-            <div class="draft-actions">
-              <button
-                (click)="loadDraft(draft.id)"
-                class="draft-action-btn load-btn"
-                [disabled]="currentDraftId() === draft.id">
-                <mat-icon fontIcon="restore" class="text-sm"></mat-icon>
-              </button>
-              <button
-                (click)="deleteDraft(draft.id)"
-                class="draft-action-btn delete-btn">
-                <mat-icon fontIcon="delete" class="text-sm"></mat-icon>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Payment Section -->
-      <div class="payment-section">
-        <div class="payment-header">
-          <mat-icon fontIcon="payment" class="text-xl text-brand-mint"></mat-icon>
-          <h3 class="text-md font-medium text-gray-900">Payment</h3>
-        </div>
-
-        <div class="payment-form">
-          <div class="payment-method">
-            <label class="payment-label">Payment Method:</label>
-            <select
-              [(ngModel)]="selectedPaymentMethod"
-              (ngModelChange)="onPaymentMethodChange()"
-              class="payment-select">
-              <option *ngFor="let method of paymentMethods" [value]="method">
-                {{ method }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Credit Sale Checkbox -->
-          <div class="credit-checkbox-section">
-            <label class="credit-checkbox-label">
-              <input
-                type="checkbox"
-                [(ngModel)]="isCreditSale"
-                (ngModelChange)="onCreditSaleToggle()"
-                class="credit-checkbox">
-              <span class="checkbox-text">
-                <mat-icon fontIcon="credit_card" class="checkbox-icon"></mat-icon>
-                This is a credit sale
-              </span>
-            </label>
-          </div>
-
-          <!-- Credit Payment Form -->
-          <div *ngIf="showCreditForm()" class="credit-payment-form">
-            <div class="credit-form-header">
-              <mat-icon fontIcon="credit_card" class="text-lg text-brand-coral"></mat-icon>
-              <h4 class="text-sm font-medium text-gray-900">Credit Payment Details</h4>
-            </div>
-
-            <div class="credit-form-fields">
-              <!-- Credit Limit -->
-              <div class="credit-field">
-                <label class="credit-label">Credit Limit (KES):</label>
-                <input
-                  matInput
-                  type="number"
-                  [(ngModel)]="creditLimit"
-                  (ngModelChange)="recalculateTotals()"
-                  (wheel)="$event.preventDefault()"
-                  placeholder="0.00"
-                  class="credit-input">
-              </div>
-
-              <!-- Expected Payment Date -->
-              <div class="credit-field">
-                <label class="credit-label">Expected Payment Date:</label>
-                <input
-                  matInput
-                  type="date"
-                  [(ngModel)]="expectedPaymentDate"
-                  class="credit-input">
-              </div>
-
-              <!-- Credit Notes -->
-              <div class="credit-field">
-                <label class="credit-label">Credit Notes (Optional):</label>
-                <textarea
-                  [(ngModel)]="creditNotes"
-                  placeholder="Any additional notes for this credit account..."
-                  class="credit-textarea">
-                </textarea>
-              </div>
-
-              <!-- Credit Summary -->
-              <div class="credit-summary">
-                <div class="summary-row">
-                  <span class="summary-label">Total Amount:</span>
-                  <span class="summary-value">{{ formatCurrency(totalAmount()) }}</span>
+            <div class="customer-search-panel">
+              <mat-form-field  class="full-width ">
+                <mat-label>Or search existing customer</mat-label>
+                <input matInput
+                  [ngModel]="customerSearchInput()"
+                  (ngModelChange)="customerSearchInput.set($event); onCustomerSearchChange()"
+                  (blur)="onCustomerSearchBlur()"
+                  autocomplete="off">
+                <mat-icon matPrefix>search</mat-icon>
+              </mat-form-field>
+              <div *ngIf="showCustomerSearchResults()" class="customer-results">
+                <div *ngIf="isCustomerSearching()" class="pos-results-loading">
+                  <mat-spinner diameter="24"></mat-spinner>
+                  <span>Searching...</span>
                 </div>
-                <div class="summary-row">
-                  <span class="summary-label">Amount Paid:</span>
-                  <span class="summary-value">{{ formatCurrency(paymentAmount()) }}</span>
-                </div>
-                <div class="summary-row">
-                  <span class="summary-label">Remaining Balance:</span>
-                  <span class="summary-value" [class]="remainingBalance() > 0 ? 'text-orange-600' : 'text-green-600'">
-                    {{ formatCurrency(remainingBalance()) }}
-                  </span>
-                </div>
-                <div class="summary-row" [class]="remainingBalance() > 0 ? 'text-orange-600' : 'text-green-600'">
-                  <span class="summary-label">Payment Status:</span>
-                  <span class="summary-value">
-                    {{ remainingBalance() > 0 ? 'Partial Payment' : 'Fully Paid' }}
-                  </span>
-                </div>
+                <div *ngIf="!isCustomerSearching() && customerSearchResults().length === 0 && hasSearched" class="pos-results-empty">No customers found</div>
+                <button type="button" *ngFor="let c of customerSearchResults()"
+                  (click)="selectCustomer(c)"
+                  [class.selected]="selectedCustomer()?.id === c.id"
+                  class="customer-option pos-customer-option">
+                  <span class="customer-name">{{ c.firstName }} {{ c.lastName }}</span>
+                  <span *ngIf="c.phone" class="customer-phone">{{ c.phone }}</span>
+                </button>
+              </div>
+            </div>
+            <div *ngIf="selectedCustomer()" class="customer-selected pos-customer-selected">
+              <div>
+                <span class="customer-name">{{ selectedCustomer()!.firstName }} {{ selectedCustomer()!.lastName }}</span>
+                <span *ngIf="selectedCustomer()!.phone" class="customer-phone">{{ selectedCustomer()!.phone }}</span>
+              </div>
+              <button mat-icon-button type="button" (click)="clearSelectedCustomer()" aria-label="Clear customer">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+            <p *ngIf="isCreditSale() && !selectedCustomer()" class="credit-hint">Select or create a customer for credit sale</p>
+          </div>
+        </div>
+
+        <!-- Payment & Notes -->
+        <div class="pos-checkout-block">
+          <div class="pos-checkout-block-head static">
+            <mat-icon>payment</mat-icon>
+            <span class="pos-checkout-block-title">Payment & notes</span>
+          </div>
+          <div class="pos-checkout-block-body is-open">
+            <mat-form-field appearance="fill" class="full-width pos-input-field">
+              <mat-label>Payment method</mat-label>
+              <mat-select [ngModel]="selectedPaymentMethod()" (ngModelChange)="selectedPaymentMethod.set($event); onPaymentMethodChange()">
+                <mat-option *ngFor="let m of paymentMethods" [value]="m">{{ getPaymentMethodDisplayName(m) }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-checkbox [ngModel]="isCreditSale()" (ngModelChange)="isCreditSale.set($event); onCreditSaleToggle()">Credit sale</mat-checkbox>
+            <div *ngIf="showCreditForm()" class="credit-fields">
+              <mat-form-field appearance="fill" class="full-width pos-input-field">
+                <mat-label>Amount paid now</mat-label>
+                <input matInput type="number" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event); recalculateTotals()" min="0" step="0.01">
+              </mat-form-field>
+              <mat-form-field appearance="fill" class="full-width pos-input-field">
+                <mat-label>Expected payment date</mat-label>
+                <input matInput [matDatepicker]="expectedPaymentDatePicker" [ngModel]="expectedPaymentDate()" (ngModelChange)="expectedPaymentDate.set($event)">
+                <mat-datepicker-toggle matIconSuffix [for]="expectedPaymentDatePicker"></mat-datepicker-toggle>
+                <mat-datepicker #expectedPaymentDatePicker></mat-datepicker>
+              </mat-form-field>
+            </div>
+            <mat-form-field appearance="fill" class="full-width pos-input-field notes-field">
+              <mat-label>Sale note (optional)</mat-label>
+              <textarea matInput [ngModel]="notes()" (ngModelChange)="notes.set($event)" placeholder="Add a note to this sale" rows="2"></textarea>
+            </mat-form-field>
+          </div>
+        </div>
+        </div>
+        <!-- Sale summary card: right column on desktop, below form on mobile -->
+        <aside class="pos-checkout-summary">
+          <h3 class="pos-checkout-summary-title">Sale summary</h3>
+          <div class="pos-bill-summary-inner">
+            <div *ngFor="let item of cart()" class="pos-bill-row">
+              <span>{{ item.productName }} × {{ item.quantity }}</span>
+              <span>KES {{ (item.unitPrice * item.quantity) | number:'1.0-0' }}</span>
+            </div>
+            <div class="pos-bill-row pos-bill-row--total">
+              <span>Total</span>
+              <span class="pos-bill-total">KES {{ totalAmount() | number:'1.0-0' }}</span>
+            </div>
+            <div *ngIf="selectedCustomer()" class="pos-summary-customer">
+              <mat-icon>person</mat-icon>
+              <span>{{ selectedCustomer()!.firstName }} {{ selectedCustomer()!.lastName }}</span>
+            </div>
+            <div *ngIf="isCreditSale()" class="summary-credit-details">
+              <div class="credit-details-header">
+                <mat-icon>credit_card</mat-icon>
+                <span>Credit sale</span>
+              </div>
+              <div class="credit-detail-row">
+                <span>Customer</span>
+                <span>{{ selectedCustomer() ? getCustomerDisplayName(selectedCustomer()!) : '—' }}</span>
+              </div>
+              <div class="credit-detail-row" *ngIf="expectedPaymentDate()">
+                <span>Expected payment</span>
+                <span>{{ expectedPaymentDate() | date:'mediumDate' }}</span>
+              </div>
+              <div class="credit-detail-row">
+                <span>Upfront</span>
+                <span>KES {{ paymentAmount() | number:'1.0-0' }}</span>
+              </div>
+              <div class="credit-detail-row credit-remaining">
+                <span>Remaining</span>
+                <span>KES {{ remainingBalance() | number:'1.0-0' }}</span>
               </div>
             </div>
           </div>
-
-          <div class="payment-amount">
-            <label class="payment-label">Amount Paid:</label>
-            <div class="amount-input-group">
-              <input
-                matInput
-                type="number"
-                [(ngModel)]="paymentAmount"
-                (ngModelChange)="recalculateTotals()"
-                (wheel)="$event.preventDefault()"
-                placeholder="0.00"
-                class="amount-input">
-              <button
-                (click)="setExactPayment()"
-                class="exact-amount-btn">
-                Exact
-              </button>
-            </div>
+          <div class="pos-checkout-actions flex justify-between">
+            <button mat-stroked-button color="primary" type="button" (click)="prevStep()" class="btn-back">
+              <mat-icon>arrow_back</mat-icon>
+              Back
+            </button>
+            <button mat-raised-button type="button" (click)="processSale()" class="btn-primary-action"
+              [disabled]="cart().length === 0 || isProcessing()">
+              <mat-spinner *ngIf="isProcessing()" diameter="20" class="btn-spinner"></mat-spinner>
+              {{ isProcessing() ? 'Processing...' : 'Complete sale' }}
+              <mat-icon>check_circle_outline</mat-icon>
+            </button>
           </div>
-
-          <div *ngIf="changeAmount() > 0" class="change-display">
-            <span class="change-label">Change:</span>
-            <span class="change-amount">KSh {{ changeAmount() | number:'1.2-2' }}</span>
-          </div>
-        </div>
+        </aside>
       </div>
-
-      <!-- Notes Section -->
-      <div class="notes-section">
-        <div class="notes-header">
-          <mat-icon fontIcon="note" class="text-xl text-brand-coral"></mat-icon>
-          <h3 class="text-md font-medium text-gray-900">Notes</h3>
-        </div>
-        <textarea
-          [(ngModel)]="notes"
-          placeholder="Add any notes for this sale..."
-          class="notes-textarea">
-        </textarea>
-      </div>
-
-      <!-- Credit Sale Validation Status -->
-      <div *ngIf="isCreditSaleActive()" class="credit-validation-status">
-        <div class="validation-header">
-          <mat-icon fontIcon="info" class="text-brand-coral"></mat-icon>
-          <span class="text-sm font-medium">Credit Sale Status</span>
-        </div>
-        <div class="validation-content">
-          <div *ngIf="validateCreditSaleRequirements().isValid" class="validation-success">
-            <mat-icon fontIcon="check_circle" class="text-green-600"></mat-icon>
-            <span>Credit sale requirements met</span>
-          </div>
-          <div *ngIf="!validateCreditSaleRequirements().isValid" class="validation-error">
-            <mat-icon fontIcon="error" class="text-red-600"></mat-icon>
-            <span>{{ validateCreditSaleRequirements().message }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="action-buttons">
-        <!-- M-Pesa Payment Button -->
-        <button
-          *ngIf="mpesaEnabled() && !isCreditSale()"
-          (click)="openMpesaPayment()"
-          [disabled]="cart().length === 0 || isProcessing() || mpesaLoading()"
-          class="mpesa-btn"
-          title="Pay with M-Pesa">
-          <mat-icon fontIcon="payment" class="text-base"></mat-icon>
-          {{ isProcessing() ? 'Processing...' : 'Pay with M-Pesa' }}
-        </button>
-
-        <button
-          (click)="processSale()"
-          [disabled]="cart().length === 0 || isProcessing() || (!isCreditSale() && paymentAmount() < totalAmount()) || (isCreditSale() && !validateCreditSaleRequirements().isValid)"
-          class="process-sale-btn">
-          <mat-icon *ngIf="!isProcessing()" fontIcon="check_circle" class="text-base"></mat-icon>
-          <mat-icon *ngIf="isProcessing()" fontIcon="hourglass_empty" class="text-base animate-spin"></mat-icon>
-          {{ isProcessing() ? 'Processing...' : 'Complete Sale' }}
-        </button>
-
-        <button
-          (click)="clearCart()"
-          [disabled]="cart().length === 0"
-          class="cancel-btn">
-          <mat-icon fontIcon="cancel" class="text-base"></mat-icon>
-          Cancel
-        </button>
-      </div>
+    </section>
     </div>
-  </div>
+  </main>
 </div>

@@ -34,6 +34,22 @@
   border-radius: 0px;
 }
 
+/* Horizontal scrollable button slider - hide scrollbar but keep functionality */
+.scrollbar-hide {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Smooth scrolling for horizontal sliders */
+.scrollbar-hide {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
 
 
 .mdc-text-field--filled:not(.mdc-text-field--disabled) .mdc-line-ripple::after {
@@ -166,4 +182,27 @@ input[type=number] {
   background-color: white !important;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
   border-radius: 1rem !important;
+}
+
+.mdc-button--raised{
+  border-color: var(--app-primary)  !important;
+  border: 1px solid var(--app-primary)  !important;
+  border-radius: 4px !important;
+}
+
+.mdc-button--outlined{
+  border-color: #f99e98 !important;
+  background-color: transparent !important;
+}
+
+/* Notification center: Material bottom sheet */
+.notification-bottom-sheet-panel {
+  max-height: 85vh !important;
+  border-radius: 16px 16px 0 0 !important;
+  overflow: hidden;
+}
+.notification-bottom-sheet-panel .mat-mdc-bottom-sheet-container {
+  padding: 0 !important;
+  max-height: 85vh;
+  border-radius: 16px 16px 0 0;
 }

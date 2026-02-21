@@ -1,5 +1,6 @@
 package com.chemsys.controller
 
+import com.chemsys.dto.AdminResetPasswordRequest
 import com.chemsys.dto.CreateUserRequest
 import com.chemsys.dto.UserManagementDto
 import com.chemsys.dto.UpdateUserRequest
@@ -48,6 +49,19 @@ class UserController(
     @DeleteMapping("/{id}")
     fun deleteUser(@PathVariable id: String): ResponseEntity<Void> {
         userService.deleteUser(java.util.UUID.fromString(id))
+        return ResponseEntity.noContent().build()
+    }
+
+    /**
+     * Admin-only: set a new password for another user (e.g. when they forget their password).
+     * The user will be required to change password on next login.
+     */
+    @PostMapping("/{id}/reset-password")
+    fun resetUserPassword(
+        @PathVariable id: String,
+        @Valid @RequestBody request: AdminResetPasswordRequest
+    ): ResponseEntity<Void> {
+        userService.resetUserPassword(java.util.UUID.fromString(id), request)
         return ResponseEntity.noContent().build()
     }
 

@@ -45,8 +45,9 @@
         </div>
         
         <!-- Actions -->
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <button class="text-xs rounded-lg border border-gray-200 px-2.5 py-1 hover:bg-gray-50" (click)="editUser(u)" [disabled]="isSelf(u)">Edit</button>
+          <button class="text-xs rounded-lg border border-brand-sky text-brand-sky px-2.5 py-1 hover:bg-brand-sky/10" (click)="resetPassword(u)" [disabled]="isSelf(u)" title="Set a new password for this user (e.g. when they forget it)">Reset password</button>
           <button class="text-xs rounded-lg border border-brand-coral text-brand-coral px-2.5 py-1 hover:bg-brand-coral/10" (click)="deleteUser(u)" [disabled]="isSelf(u)">Delete</button>
         </div>
       </div>

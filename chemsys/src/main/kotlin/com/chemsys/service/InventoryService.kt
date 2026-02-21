@@ -5,10 +5,12 @@ import com.chemsys.entity.*
 import com.chemsys.repository.*
 import com.chemsys.config.TenantContext
 import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import java.util.*
 
@@ -22,6 +24,7 @@ class InventoryService(
     private val productRepository: ProductRepository,
     private val branchRepository: BranchRepository,
     private val userRepository: UserRepository,
+    private val userBranchRepository: UserBranchRepository,
     private val inventoryTransactionRepository: InventoryTransactionRepository
 ) {
 
@@ -53,8 +56,8 @@ class InventoryService(
             expiryDate = request.expiryDate,
             manufacturingDate = request.manufacturingDate,
             quantity = request.quantity,
-            unitCost = request.unitCost,
-            sellingPrice = request.sellingPrice,
+            unitCost = request.unitCost ?: product.unitCost,
+            sellingPrice = request.sellingPrice ?: product.sellingPrice,
             locationInBranch = request.locationInBranch,
             lastRestocked = java.time.OffsetDateTime.now()
         )
@@ -95,8 +98,8 @@ class InventoryService(
 
         val updatedInventory = inventory.copy(
             quantity = request.quantity ?: inventory.quantity,
-            unitCost = request.unitCost ?: inventory.unitCost,
-            sellingPrice = request.sellingPrice ?: inventory.sellingPrice,
+            unitCost = request.unitCost ?: inventory.unitCost ?: inventory.product.unitCost,
+            sellingPrice = request.sellingPrice ?: inventory.sellingPrice ?: inventory.product.sellingPrice,
             locationInBranch = request.locationInBranch ?: inventory.locationInBranch,
             isActive = request.isActive ?: inventory.isActive,
             updatedAt = java.time.OffsetDateTime.now()
@@ -104,6 +107,30 @@ class InventoryService(
 
         val savedInventory = inventoryRepository.save(updatedInventory)
         return mapToDto(savedInventory, savedInventory.product, savedInventory.branch)
+    }
+
+    /**
+     * Deletes inventory (soft delete by setting isActive to false).
+     * The record is preserved for audit but excluded from active inventory lists.
+     */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','MANAGER')")
+    @Transactional
+    fun deleteInventory(id: UUID): Unit {
+        val currentTenantId = TenantContext.getCurrentTenant()
+            ?: throw RuntimeException("No tenant context found")
+
+        val inventory = inventoryRepository.findById(id)
+            .orElseThrow { RuntimeException("Inventory not found with id: $id") }
+
+        if (inventory.product.tenant.id != currentTenantId) {
+            throw RuntimeException("Inventory not found with id: $id")
+        }
+
+        val deactivated = inventory.copy(
+            isActive = false,
+            updatedAt = java.time.OffsetDateTime.now()
+        )
+        inventoryRepository.save(deactivated)
     }
 
     /**
@@ -166,8 +193,9 @@ class InventoryService(
 
     /**
      * Transfers inventory between branches.
+     * CASHIER role is allowed to transfer items, but all transfers are logged for admin review.
      */
-    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','MANAGER','CASHIER')")
     @Transactional
     fun transferInventory(request: InventoryTransferRequest): InventoryDto {
         val currentTenantId = TenantContext.getCurrentTenant()
@@ -231,7 +259,10 @@ class InventoryService(
 
         val savedDestinationInventory = inventoryRepository.save(finalDestinationInventory)
 
-        // Create transaction records
+        // Generate a unique transfer reference number to link TRANSFER_OUT and TRANSFER_IN
+        val transferReference = "TRF-${System.currentTimeMillis()}-${UUID.randomUUID().toString().substring(0, 8).uppercase()}"
+
+        // Create transaction records with linked reference number
         createTransaction(
             product = product,
             branch = fromBranch,
@@ -240,7 +271,8 @@ class InventoryService(
             unitCost = sourceInventory.unitCost,
             batchNumber = request.batchNumber,
             expiryDate = sourceInventory.expiryDate,
-            notes = "Transfer to branch: ${toBranch.name}"
+            notes = "Transfer to branch: ${toBranch.name}${if (request.notes != null) " - ${request.notes}" else ""}",
+            referenceNumber = transferReference
         )
 
         createTransaction(
@@ -251,25 +283,30 @@ class InventoryService(
             unitCost = sourceInventory.unitCost,
             batchNumber = request.batchNumber,
             expiryDate = sourceInventory.expiryDate,
-            notes = "Transfer from branch: ${fromBranch.name}"
+            notes = "Transfer from branch: ${fromBranch.name}${if (request.notes != null) " - ${request.notes}" else ""}",
+            referenceNumber = transferReference
         )
 
         return mapToDto(savedDestinationInventory, product, toBranch)
     }
 
     /**
-     * Retrieves inventory for the current tenant, respecting branch context.
-     * - ADMIN users can see all branches or filter by specific branch
-     * - MANAGER/CASHIER users see only their current branch
+     * Retrieves inventory for the current tenant.
+     * - All users (ADMIN, MANAGER, CASHIER) can view inventory across all branches.
+     * - branchId = null returns all tenant inventory; branchId set returns that branch's inventory.
+     * - Operation-level checks (Adjust, Transfer, Sell) restrict what users can perform on non-assigned branches.
      */
     @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','MANAGER','CASHIER')")
     fun getAllInventory(branchId: UUID? = null): InventoryListResponse {
         val currentTenantId = TenantContext.getCurrentTenant()
             ?: throw RuntimeException("No tenant context found")
 
-        val allInventory = if (branchId != null) {
-            // Specific branch requested (for ADMIN users or explicit filtering)
-            inventoryRepository.findByBranchId(branchId)
+        // All roles can view inventory for any branch - no branch filtering for read access
+        val effectiveBranchId = branchId
+
+        val allInventory = if (effectiveBranchId != null) {
+            // Specific branch requested
+            inventoryRepository.findByBranchId(effectiveBranchId)
                 .filter { it.product.tenant.id == currentTenantId }
         } else {
             // No specific branch - get all inventory for tenant
@@ -446,7 +483,106 @@ class InventoryService(
     }
 
     /**
+     * Gets inventory transfer history for admin review.
+     * Returns all transfers with details about who performed them.
+     * Only accessible by ADMIN and PLATFORM_ADMIN roles.
+     */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN')")
+    @Transactional(readOnly = true)
+    fun getTransferHistory(
+        branchId: UUID? = null,
+        startDate: OffsetDateTime? = null,
+        endDate: OffsetDateTime? = null,
+        performedBy: UUID? = null
+    ): InventoryTransferHistoryResponse {
+        val currentTenantId = TenantContext.getCurrentTenant()
+            ?: throw RuntimeException("No tenant context found")
+
+        // Get all TRANSFER_OUT transactions (these represent the source of transfers)
+        val transferOutTransactions = when {
+            branchId != null && startDate != null && endDate != null -> {
+                inventoryTransactionRepository.findByBranchIdAndTenantId(branchId, currentTenantId)
+                    .filter { 
+                        it.transactionType == TransactionType.TRANSFER_OUT &&
+                        it.createdAt.isAfter(startDate) &&
+                        it.createdAt.isBefore(endDate) &&
+                        (performedBy == null || it.performedBy?.id == performedBy)
+                    }
+            }
+            branchId != null -> {
+                inventoryTransactionRepository.findByBranchIdAndTenantId(branchId, currentTenantId)
+                    .filter { 
+                        it.transactionType == TransactionType.TRANSFER_OUT &&
+                        (performedBy == null || it.performedBy?.id == performedBy)
+                    }
+            }
+            performedBy != null -> {
+                inventoryTransactionRepository.findByPerformedByAndTenantId(performedBy, currentTenantId)
+                    .filter { it.transactionType == TransactionType.TRANSFER_OUT }
+            }
+            startDate != null && endDate != null -> {
+                inventoryTransactionRepository.findByDateRangeAndTenantId(startDate, endDate, currentTenantId)
+                    .filter { it.transactionType == TransactionType.TRANSFER_OUT }
+            }
+            else -> {
+                inventoryTransactionRepository.findByTransactionTypeAndTenantId(TransactionType.TRANSFER_OUT, currentTenantId)
+            }
+        }
+
+        // For each TRANSFER_OUT, find the corresponding TRANSFER_IN using reference number
+        val transferHistory = transferOutTransactions.mapNotNull { transferOut ->
+            // Find the corresponding TRANSFER_IN transaction by reference number
+            val transferIn = if (transferOut.referenceNumber != null) {
+                inventoryTransactionRepository
+                    .findByTransactionTypeAndTenantId(TransactionType.TRANSFER_IN, currentTenantId)
+                    .firstOrNull { it.referenceNumber == transferOut.referenceNumber }
+            } else {
+                // Fallback: match by product, quantity, and timing (for older transfers without reference)
+                inventoryTransactionRepository
+                    .findByTransactionTypeAndTenantId(TransactionType.TRANSFER_IN, currentTenantId)
+                    .firstOrNull { 
+                        it.product.id == transferOut.product.id &&
+                        it.quantity == -transferOut.quantity &&
+                        it.createdAt.isAfter(transferOut.createdAt.minusSeconds(5)) &&
+                        it.createdAt.isBefore(transferOut.createdAt.plusSeconds(5))
+                    }
+            }
+
+            val toBranch = transferIn?.branch
+
+            if (toBranch != null) {
+                InventoryTransferHistoryDto(
+                    id = transferOut.id!!,
+                    productId = transferOut.product.id!!,
+                    productName = transferOut.product.name,
+                    fromBranchId = transferOut.branch.id!!,
+                    fromBranchName = transferOut.branch.name,
+                    toBranchId = toBranch.id!!,
+                    toBranchName = toBranch.name,
+                    quantity = -transferOut.quantity, // Make positive
+                    batchNumber = transferOut.batchNumber,
+                    expiryDate = transferOut.expiryDate,
+                    unitCost = transferOut.unitCost,
+                    notes = transferOut.notes,
+                    performedBy = transferOut.performedBy?.id,
+                    performedByUsername = transferOut.performedBy?.username,
+                    performedByEmail = transferOut.performedBy?.email,
+                    createdAt = transferOut.createdAt
+                )
+            } else {
+                null
+            }
+        }
+
+        return InventoryTransferHistoryResponse(
+            transfers = transferHistory.sortedByDescending { it.createdAt },
+            totalCount = transferHistory.size.toLong()
+        )
+    }
+
+    /**
      * Creates an inventory transaction record.
+     * Captures the current authenticated user who performed the transaction.
      */
     private fun createTransaction(
         product: Product,
@@ -456,10 +592,16 @@ class InventoryService(
         unitCost: BigDecimal?,
         batchNumber: String?,
         expiryDate: LocalDate?,
-        notes: String?
+        notes: String?,
+        referenceNumber: String? = null
     ) {
-        val currentUserId = TenantContext.getCurrentTenant() // Using tenant context for now
-        val user = null // TODO: Implement user context
+        // Get current authenticated user
+        val currentUsername = org.springframework.security.core.context.SecurityContextHolder.getContext()?.authentication?.name
+        val user = if (currentUsername != null) {
+            userRepository.findByUsername(currentUsername)
+        } else {
+            null
+        }
 
         val transaction = InventoryTransaction(
             product = product,
@@ -470,7 +612,7 @@ class InventoryService(
             totalCost = unitCost?.multiply(BigDecimal(quantity)),
             batchNumber = batchNumber,
             expiryDate = expiryDate,
-            referenceNumber = null, // TODO: Generate reference number
+            referenceNumber = referenceNumber,
             notes = notes,
             performedBy = user,
         )
@@ -499,8 +641,8 @@ class InventoryService(
             expiryDate = inventory.expiryDate,
             manufacturingDate = inventory.manufacturingDate,
             quantity = inventory.quantity,
-            unitCost = inventory.unitCost,
-            sellingPrice = inventory.sellingPrice,
+            unitCost = product.unitCost ?: inventory.unitCost,
+            sellingPrice = product.sellingPrice ?: inventory.sellingPrice,
             locationInBranch = inventory.locationInBranch,
             isActive = inventory.isActive,
             lastRestocked = inventory.lastRestocked,

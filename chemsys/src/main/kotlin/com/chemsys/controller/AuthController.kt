@@ -1,5 +1,6 @@
 package com.chemsys.controller
 
+import com.chemsys.dto.ChangePasswordRequest
 import com.chemsys.dto.LoginRequest
 import com.chemsys.dto.LoginResponse
 import com.chemsys.dto.SignupRequest
@@ -29,6 +30,12 @@ class AuthController(
     fun signup(@Valid @RequestBody request: SignupRequest): ResponseEntity<SignupResponse> {
         val response = authService.signup(request)
         return ResponseEntity.ok(response)
+    }
+
+    @PostMapping("/change-password")
+    fun changePassword(@Valid @RequestBody request: ChangePasswordRequest): ResponseEntity<Unit> {
+        authService.changePassword(request)
+        return ResponseEntity.ok().build()
     }
 
     @GetMapping("/me")

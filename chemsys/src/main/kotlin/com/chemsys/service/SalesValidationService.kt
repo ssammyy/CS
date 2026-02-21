@@ -110,8 +110,8 @@ class SalesValidationService(
                     batchNumber = inventory.batchNumber,
                     expiryDate = inventory.expiryDate,
                     availableQuantity = inventory.quantity,
-                    unitCost = inventory.unitCost,
-                    sellingPrice = inventory.sellingPrice,
+                    unitCost = inventory.product.unitCost ?: inventory.unitCost,
+                    sellingPrice = inventory.product.sellingPrice ?: inventory.sellingPrice,
                     isExpired = inventory.expiryDate?.isBefore(java.time.LocalDate.now()) ?: false,
                     isExpiringSoon = inventory.expiryDate?.isBefore(java.time.LocalDate.now().plusDays(30)) ?: false
                 )
@@ -311,11 +311,14 @@ class SalesValidationService(
                 if (lineItem.discountAmount < BigDecimal.ZERO) {
                     errors.add("Line item ${index + 1}: Discount amount cannot be negative")
                 } else {
-                    // Validate discount doesn't exceed 10% of selling price
+                    // Validate sell price cannot go below buying price (unit cost)
+                    val unitCost = inventory.product.unitCost ?: inventory.unitCost ?: BigDecimal.ZERO
                     val itemSubtotal = lineItem.unitPrice.multiply(BigDecimal(lineItem.quantity))
-                    val maxAllowedDiscount = itemSubtotal.multiply(BigDecimal("0.10")) // 10% max
-                    if (lineItem.discountAmount > maxAllowedDiscount) {
-                        errors.add("Line item ${index + 1}: Discount amount (${lineItem.discountAmount}) cannot exceed 10% of selling price (${maxAllowedDiscount})")
+                    val effectiveTotal = itemSubtotal.subtract(lineItem.discountAmount)
+                    val minAllowedTotal = unitCost.multiply(BigDecimal(lineItem.quantity))
+                    if (effectiveTotal < minAllowedTotal) {
+                        val maxAllowedDiscount = itemSubtotal.subtract(minAllowedTotal).max(BigDecimal.ZERO)
+                        errors.add("Line item ${index + 1}: Selling price cannot go below buying price. Max discount allowed: ${maxAllowedDiscount}")
                     }
                 }
             }
@@ -358,14 +361,10 @@ class SalesValidationService(
             
             // Validate payment method specific rules
             when (payment.paymentMethod) {
-                PaymentMethod.CARD, PaymentMethod.MPESA -> {
+                PaymentMethod.TILL, PaymentMethod.FAMILY_BANK, PaymentMethod.WATU_SIMU, PaymentMethod.MOGO,
+                PaymentMethod.ONFON_N1, PaymentMethod.ONFON_N2, PaymentMethod.ONFON_GLEX -> {
                     if (payment.referenceNumber.isNullOrBlank()) {
                         errors.add("Payment ${index + 1}: Reference number is required for ${payment.paymentMethod}")
-                    }
-                }
-                PaymentMethod.INSURANCE -> {
-                    if (payment.referenceNumber.isNullOrBlank()) {
-                        errors.add("Payment ${index + 1}: Insurance reference number is required")
                     }
                 }
                 else -> {

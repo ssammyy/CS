@@ -1,5 +1,6 @@
 package com.chemsys.service
 
+import com.chemsys.dto.ChangePasswordRequest
 import com.chemsys.dto.LoginRequest
 import com.chemsys.dto.LoginResponse
 import com.chemsys.dto.SignupRequest
@@ -15,7 +16,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
-import org.springframework.security.core.Authentication
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -35,10 +36,9 @@ class AuthService(
     }
 
     fun login(request: LoginRequest): LoginResponse {
-        val authentication = authenticationManager.authenticate(
+        authenticationManager.authenticate(
             UsernamePasswordAuthenticationToken(request.username, request.password)
         )
-        
         val user = userRepository.findByUsername(request.username)
             ?: throw RuntimeException("User not found after authentication")
         
@@ -59,7 +59,27 @@ class AuthService(
                 tenantId = user.tenant.id!!,
                 tenantName = user.tenant.name,
                 isActive = user.isActive
-            )
+            ),
+            requiresPasswordChange = user.mustChangePassword
+        )
+    }
+
+    /**
+     * Change password for the authenticated user. Used for force-reset-on-first-login.
+     * Verifies current password, updates to new password, and clears mustChangePassword.
+     */
+    @Transactional
+    fun changePassword(request: ChangePasswordRequest) {
+        val username = SecurityContextHolder.getContext().authentication?.name
+            ?: throw RuntimeException("Not authenticated")
+        val user = userRepository.findByUsername(username)
+            ?: throw RuntimeException("User not found")
+        if (!passwordEncoder.matches(request.currentPassword, user.passwordHash)) {
+            throw RuntimeException("Current password is incorrect")
+        }
+        userRepository.updatePasswordAndClearMustChange(
+            user.id!!,
+            passwordEncoder.encode(request.newPassword)
         )
     }
 

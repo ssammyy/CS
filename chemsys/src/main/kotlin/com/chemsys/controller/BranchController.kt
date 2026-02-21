@@ -58,6 +58,12 @@ class BranchController(
         return ResponseEntity.noContent().build()
     }
 
+    @PutMapping("/update-primary")
+    fun updateUserBranchPrimary(@Valid @RequestBody request: UpdateUserBranchPrimaryRequest): ResponseEntity<UserBranchAssignmentDto> {
+        val assignment = branchService.updateUserBranchPrimary(request)
+        return ResponseEntity.ok(assignment)
+    }
+
     @GetMapping("/{branchId}/users")
     fun getBranchUsers(@PathVariable branchId: UUID): ResponseEntity<List<UserBranchAssignmentDto>> {
         val users = branchService.getBranchUsers(branchId)

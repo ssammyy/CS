@@ -5,22 +5,7 @@
       <h1 class="text-2xl font-semibold text-gray-900">Credit Management</h1>
       <p class="text-gray-600 mt-1">Manage credit accounts and track payments</p>
     </div>
-    <div class="flex gap-3">
-      <button
-        (click)="openCreateCreditAccountDialog()"
-        [disabled]="loading"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-brand-mint text-white rounded-lg hover:bg-brand-mint/90 disabled:opacity-50 transition-colors">
-        <mat-icon fontIcon="add" class="text-lg"></mat-icon>
-        Create Credit Account
-      </button>
-      <button
-        (click)="loadCreditAccounts()"
-        [disabled]="loading"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-brand-sky text-white rounded-lg hover:bg-brand-sky/90 disabled:opacity-50 transition-colors">
-        <mat-icon fontIcon="refresh" class="text-lg"></mat-icon>
-        Refresh
-      </button>
-    </div>
+
   </div>
 
   <!-- Error Message -->
@@ -30,7 +15,18 @@
 
   <!-- Filters -->
   <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-    <div class="flex flex-wrap gap-4 items-end">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-sm font-medium text-gray-700">Filters</h3>
+      <button
+        type="button"
+        (click)="filtersCollapsed = !filtersCollapsed"
+        class="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-sm text-gray-700">
+        <mat-icon fontIcon="filter_list" class="text-base"></mat-icon>
+        <span>{{ filtersCollapsed ? 'Show' : 'Hide' }} Filters</span>
+        <mat-icon [fontIcon]="filtersCollapsed ? 'expand_more' : 'expand_less'" class="text-base"></mat-icon>
+      </button>
+    </div>
+    <div *ngIf="!filtersCollapsed" class="flex flex-wrap gap-4 items-end">
       <div class="flex-1 min-w-48">
         <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-2">Filter by Status:</label>
         <select
@@ -201,9 +197,13 @@
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-brand-sky">
                   <option value="">Select method</option>
                   <option [value]="PaymentMethod.CASH">{{ getPaymentMethodDisplay(PaymentMethod.CASH) }}</option>
-                  <option [value]="PaymentMethod.MPESA">{{ getPaymentMethodDisplay(PaymentMethod.MPESA) }}</option>
-                  <option [value]="PaymentMethod.CARD">{{ getPaymentMethodDisplay(PaymentMethod.CARD) }}</option>
-                  <option [value]="PaymentMethod.CHEQUE">{{ getPaymentMethodDisplay(PaymentMethod.CHEQUE) }}</option>
+                  <option [value]="PaymentMethod.TILL">{{ getPaymentMethodDisplay(PaymentMethod.TILL) }}</option>
+                  <option [value]="PaymentMethod.FAMILY_BANK">{{ getPaymentMethodDisplay(PaymentMethod.FAMILY_BANK) }}</option>
+                  <option [value]="PaymentMethod.WATU_SIMU">{{ getPaymentMethodDisplay(PaymentMethod.WATU_SIMU) }}</option>
+                  <option [value]="PaymentMethod.MOGO">{{ getPaymentMethodDisplay(PaymentMethod.MOGO) }}</option>
+                  <option [value]="PaymentMethod.ONFON_N1">{{ getPaymentMethodDisplay(PaymentMethod.ONFON_N1) }}</option>
+                  <option [value]="PaymentMethod.ONFON_N2">{{ getPaymentMethodDisplay(PaymentMethod.ONFON_N2) }}</option>
+                  <option [value]="PaymentMethod.ONFON_GLEX">{{ getPaymentMethodDisplay(PaymentMethod.ONFON_GLEX) }}</option>
                 </select>
               </div>
             </div>

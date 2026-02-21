@@ -136,6 +136,10 @@ export interface ProductDto {
   storageConditions?: string;
   minStockLevel: number;
   maxStockLevel?: number;
+  /** Unit cost (cost price) at product level. */
+  unitCost?: number | null;
+  /** Selling price at product level. */
+  sellingPrice?: number | null;
   tenantId: string;
   tenantName: string;
   totalQuantity: number;
@@ -156,6 +160,8 @@ export interface CreateProductRequest {
   storageConditions?: string;
   minStockLevel: number;
   maxStockLevel?: number;
+  unitCost?: number | null;
+  sellingPrice?: number | null;
 }
 
 export interface UpdateProductRequest {
@@ -170,6 +176,8 @@ export interface UpdateProductRequest {
   storageConditions?: string;
   minStockLevel?: number;
   maxStockLevel?: number;
+  unitCost?: number | null;
+  sellingPrice?: number | null;
   isActive?: boolean;
 }
 

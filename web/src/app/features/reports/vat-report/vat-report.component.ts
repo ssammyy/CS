@@ -8,6 +8,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 
 import {
   PrimaryButtonComponent,
@@ -20,6 +22,7 @@ import {
 
 import { VatReportService, VatReportDto } from '../services/vat-report.service';
 import { BranchesService, BranchDto } from '../../../core/services/branches.service';
+import { BranchContextService } from '../../../core/services/branch-context.service';
 
 /**
  * VAT Report component showing VAT analytics, input/output VAT, and tax breakdown
@@ -37,6 +40,8 @@ import { BranchesService, BranchDto } from '../../../core/services/branches.serv
     MatProgressSpinnerModule,
     MatTooltipModule,
     MatChipsModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
     PrimaryButtonComponent,
     SecondaryButtonComponent,
     AccentButtonComponent,
@@ -64,27 +69,23 @@ import { BranchesService, BranchDto } from '../../../core/services/branches.serv
       <!-- Filters -->
       <div class="bg-white rounded-lg shadow p-6 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-            <input
-              type="date"
-              [(ngModel)]="startDate"
-              (change)="generateReport()"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-            <input
-              type="date"
-              [(ngModel)]="endDate"
-              (change)="generateReport()"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent">
-          </div>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
+            <mat-label>Start Date</mat-label>
+            <input matInput [matDatepicker]="startDatePicker" [(ngModel)]="startDate" (dateChange)="generateReport()">
+            <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #startDatePicker></mat-datepicker>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
+            <mat-label>End Date</mat-label>
+            <input matInput [matDatepicker]="endDatePicker" [(ngModel)]="endDate" (dateChange)="generateReport()">
+            <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #endDatePicker></mat-datepicker>
+          </mat-form-field>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Branch</label>
             <select
-              [(ngModel)]="selectedBranchId"
-              (change)="onBranchChange()"
+              [ngModel]="selectedBranchId"
+              (ngModelChange)="selectedBranchId = $event; onBranchChange()"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent">
               <option [value]="''">All Branches</option>
               <option *ngFor="let branch of branches" [value]="branch.id">
@@ -322,8 +323,8 @@ import { BranchesService, BranchDto } from '../../../core/services/branches.serv
   styleUrl: './vat-report.component.scss'
 })
 export class VatReportComponent implements OnInit {
-  startDate = '';
-  endDate = '';
+  startDate: Date | null = null;
+  endDate: Date | null = null;
   selectedBranchId: string = '';
 
   report: VatReportDto | null = null;
@@ -333,18 +334,28 @@ export class VatReportComponent implements OnInit {
 
   constructor(
     private vatReportService: VatReportService,
-    private branchesService: BranchesService
+    private branchesService: BranchesService,
+    private branchContext: BranchContextService
   ) {
     const today = new Date();
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    this.endDate = today;
+    this.startDate = thirtyDaysAgo;
+  }
 
-    this.endDate = this.formatDate(today);
-    this.startDate = this.formatDate(thirtyDaysAgo);
+  private formatDateForApi(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   ngOnInit(): void {
     this.loadBranches();
-    this.generateReport();
+    this.branchContext.currentBranch$.subscribe(branch => {
+      this.selectedBranchId = branch?.id ?? '';
+      this.generateReport();
+    });
   }
 
   loadBranches(): void {
@@ -367,8 +378,8 @@ export class VatReportComponent implements OnInit {
     const branchId = this.selectedBranchId ? this.selectedBranchId : undefined;
 
     this.vatReportService.getVatReport(
-      this.startDate,
-      this.endDate,
+      this.formatDateForApi(this.startDate),
+      this.formatDateForApi(this.endDate),
       branchId
     ).subscribe({
       next: (data) => {

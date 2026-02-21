@@ -1,0 +1,114 @@
+<div class="notification-sheet flex flex-col bg-white">
+  <div class="p-3 sm:p-4 border-b border-gray-100 bg-gray-50 shrink-0">
+    <div class="flex items-center justify-between gap-2">
+      <div>
+        <h3 class="text-base sm:text-sm font-semibold text-gray-900">Notifications</h3>
+        <p class="text-xs text-gray-500 mt-0.5">Sale edit requests and other updates</p>
+      </div>
+      <button type="button" (click)="close()" class="p-2 -m-2 rounded-lg hover:bg-gray-200" aria-label="Close" matTooltip="Close">
+        <mat-icon fontIcon="close" class="!text-xl"></mat-icon>
+      </button>
+    </div>
+  </div>
+  <div class="overflow-y-auto flex-1 min-h-0 p-2 sm:p-4 max-h-[70vh] sm:max-h-[65vh]">
+    <!-- Section: Sale edit requests (admin only) -->
+    <ng-container *ngIf="isAdmin">
+      <div class="flex items-center gap-2 py-1.5 px-1">
+        <span class="text-xs font-medium uppercase tracking-wide text-gray-500">Sale edit requests</span>
+        <span *ngIf="pendingItems().length > 0" class="rounded-full bg-brand-coral/20 text-brand-coral text-xs font-medium px-2 py-0.5">{{ pendingItems().length }}</span>
+      </div>
+      <div *ngIf="pendingLoading()" class="flex justify-center py-4">
+        <span class="text-sm text-gray-500">Loading...</span>
+      </div>
+      <ng-container *ngIf="!pendingLoading()">
+        <div *ngIf="pendingItems().length === 0" class="py-4 text-center text-sm text-gray-500 rounded-lg bg-gray-50/50">
+          No pending sale edit requests
+        </div>
+        <div *ngFor="let item of pendingItems()" class="mb-3 rounded-lg border border-gray-100 hover:border-brand-mint/40 bg-white overflow-hidden">
+          <div class="p-3 sm:p-4">
+            <div class="flex justify-between items-start gap-2">
+              <button type="button" (click)="closeAndNavigate(['/sales'])" class="text-sm font-semibold text-brand-sky hover:underline truncate min-w-0 flex-1 text-left">Sale #{{ item.saleNumber }}</button>
+              <div class="flex gap-1.5 shrink-0 touch-manipulation">
+                <button type="button" (click)="approveEditRequest(item)" [disabled]="actingOnId() === item.id" class="p-2 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg bg-brand-mint/20 text-brand-mint hover:bg-brand-mint/30 disabled:opacity-50" matTooltip="Approve">
+                  <mat-icon fontIcon="check" class="!text-lg !w-5 !h-5"></mat-icon>
+                </button>
+                <button type="button" (click)="toggleRejectReason(item)" [disabled]="actingOnId() === item.id" class="p-2 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg bg-brand-coral/20 text-brand-coral hover:bg-brand-coral/30 disabled:opacity-50" matTooltip="Reject">
+                  <mat-icon fontIcon="close" class="!text-lg !w-5 !h-5"></mat-icon>
+                </button>
+              </div>
+            </div>
+            <p class="text-sm font-medium text-gray-900 mt-1 break-words">{{ item.productName || 'Line item' }}</p>
+            <p class="text-xs text-gray-600 mt-0.5 break-words">
+              <span class="font-medium">{{ item.requestType === 'PRICE_CHANGE' ? 'Price change' : 'Remove line' }}</span>
+              <ng-container *ngIf="item.requestType === 'PRICE_CHANGE' && (item.currentUnitPrice != null || item.newUnitPrice != null)">
+                · KSh {{ item.currentUnitPrice ?? '—' | number:'1.2-2' }} → KSh {{ item.newUnitPrice ?? '—' | number:'1.2-2' }}
+              </ng-container>
+              <ng-container *ngIf="item.quantity != null"> · Qty {{ item.quantity }}</ng-container>
+            </p>
+            <p *ngIf="item.reason" class="text-xs text-gray-600 mt-1 border-l-2 border-brand-sky/40 pl-2 break-words">{{ item.reason }}</p>
+            <p class="text-xs text-gray-500 mt-1.5">By {{ item.requestedByName }} · {{ item.requestedAt | date:'short' }}</p>
+          </div>
+          <div *ngIf="rejectingId() === item.id" class="border-t border-gray-100 bg-gray-50 p-3 sm:p-4">
+            <label class="block text-xs font-medium text-gray-700 mb-1">Rejection reason (optional)</label>
+            <textarea [(ngModel)]="rejectReasonText" rows="2" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 min-h-[80px] focus:border-brand-coral focus:ring-1 focus:ring-brand-coral" placeholder="e.g. Incorrect discount"></textarea>
+            <div class="flex gap-2 mt-3 flex-wrap">
+              <button type="button" (click)="confirmRejectEditRequest(item)" class="px-4 py-2.5 rounded-lg bg-brand-coral text-white text-sm font-medium hover:bg-brand-coral/90 min-h-[44px] touch-manipulation">Reject</button>
+              <button type="button" (click)="cancelReject()" class="px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 text-sm hover:bg-gray-50 min-h-[44px] touch-manipulation">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </ng-container>
+    <!-- Section: Expense approval requests (admin only) -->
+    <ng-container *ngIf="isAdmin">
+      <div class="flex items-center gap-2 py-1.5 px-1 mt-2 border-t border-gray-100 pt-3">
+        <span class="text-xs font-medium uppercase tracking-wide text-gray-500">Expense approval requests</span>
+        <span *ngIf="pendingExpenses().length > 0" class="rounded-full bg-brand-coral/20 text-brand-coral text-xs font-medium px-2 py-0.5">{{ pendingExpenses().length }}</span>
+      </div>
+      <div *ngIf="pendingExpensesLoading()" class="flex justify-center py-4">
+        <span class="text-sm text-gray-500">Loading...</span>
+      </div>
+      <ng-container *ngIf="!pendingExpensesLoading()">
+        <div *ngIf="pendingExpenses().length === 0" class="py-4 text-center text-sm text-gray-500 rounded-lg bg-gray-50/50">
+          No pending expense requests
+        </div>
+        <div *ngFor="let expense of pendingExpenses()" class="mb-3 rounded-lg border border-gray-100 hover:border-brand-mint/40 bg-white overflow-hidden">
+          <div class="p-3 sm:p-4">
+            <div class="flex justify-between items-start gap-2">
+              <button type="button" (click)="closeAndNavigate(['/expenses'])" class="text-sm font-semibold text-brand-sky hover:underline truncate min-w-0 flex-1 text-left">
+                {{ expenseTypeLabel(expense.expenseType) }} · {{ expense.amount | currency:'KES' }}
+              </button>
+              <div class="flex gap-1.5 shrink-0 touch-manipulation">
+                <button type="button" (click)="approveExpense(expense)" [disabled]="actingOnExpenseId() === expense.id" class="p-2 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg bg-brand-mint/20 text-brand-mint hover:bg-brand-mint/30 disabled:opacity-50" matTooltip="Approve">
+                  <mat-icon fontIcon="check" class="!text-lg !w-5 !h-5"></mat-icon>
+                </button>
+                <button type="button" (click)="toggleRejectExpense(expense)" [disabled]="actingOnExpenseId() === expense.id" class="p-2 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 rounded-lg bg-brand-coral/20 text-brand-coral hover:bg-brand-coral/30 disabled:opacity-50" matTooltip="Reject">
+                  <mat-icon fontIcon="close" class="!text-lg !w-5 !h-5"></mat-icon>
+                </button>
+              </div>
+            </div>
+            <p class="text-sm text-gray-900 mt-1">{{ expense.branchName }} · {{ expense.expenseDate }}</p>
+            <p *ngIf="expense.description" class="text-xs text-gray-600 mt-0.5 border-l-2 border-brand-sky/40 pl-2 break-words">{{ expense.description }}</p>
+            <p class="text-xs text-gray-500 mt-1.5">By {{ expense.createdBy || '—' }} · {{ expense.createdAt | date:'short' }}</p>
+          </div>
+          <div *ngIf="rejectingExpenseId() === expense.id" class="border-t border-gray-100 bg-gray-50 p-3 sm:p-4">
+            <label class="block text-xs font-medium text-gray-700 mb-1">Rejection reason (optional)</label>
+            <textarea [(ngModel)]="rejectExpenseReasonText" rows="2" class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 min-h-[80px] focus:border-brand-coral focus:ring-1 focus:ring-brand-coral" placeholder="e.g. Not approved"></textarea>
+            <div class="flex gap-2 mt-3 flex-wrap">
+              <button type="button" (click)="confirmRejectExpense(expense)" class="px-4 py-2.5 rounded-lg bg-brand-coral text-white text-sm font-medium hover:bg-brand-coral/90 min-h-[44px] touch-manipulation">Reject</button>
+              <button type="button" (click)="cancelRejectExpense()" class="px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 text-sm hover:bg-gray-50 min-h-[44px] touch-manipulation">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </ng-container>
+
+    <!-- Section: Other notifications -->
+    <div class="flex items-center gap-2 py-1.5 px-1 mt-2 border-t border-gray-100 pt-3">
+      <span class="text-xs font-medium uppercase tracking-wide text-gray-500">Other</span>
+    </div>
+    <div class="py-4 text-center text-sm text-gray-500 rounded-lg bg-gray-50/50">
+      No other notifications
+    </div>
+  </div>
+</div>

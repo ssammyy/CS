@@ -101,7 +101,12 @@ export class BranchesService {
 
   /** Removes a user from a branch. */
   removeUserFromBranch(request: RemoveUserFromBranchRequest): Observable<void> {
-    return this.http.post<void>(`${environment.apiBaseUrl}/api/branches/remove-user`, request);
+    return this.http.delete<void>(`${environment.apiBaseUrl}/api/branches/remove-user`, { body: request });
+  }
+
+  /** Updates the primary status of a user's branch assignment. */
+  updateUserBranchPrimary(request: UpdateUserBranchPrimaryRequest): Observable<UserBranchAssignmentDto> {
+    return this.http.put<UserBranchAssignmentDto>(`${environment.apiBaseUrl}/api/branches/update-primary`, request);
   }
 
   /** Gets users assigned to a specific branch. */
@@ -111,12 +116,12 @@ export class BranchesService {
 
   /** Gets users assigned to a specific branch with full user details. */
   getBranchUsers(branchId: string): Observable<UserBranchAssignmentDto[]> {
-    return this.http.get<UserBranchAssignmentDto[]>(`${environment.apiBaseUrl}/api/branches/${branchId}`);
+    return this.http.get<UserBranchAssignmentDto[]>(`${environment.apiBaseUrl}/api/branches/${branchId}/users`);
   }
 
   /** Gets branches assigned to a specific user. */
-  getBranchesByUser(userId: string): Observable<UserBranchDto[]> {
-    return this.http.get<UserBranchDto[]>(`${environment.apiBaseUrl}/api/branches/users/${userId}`);
+  getBranchesByUser(userId: string): Observable<UserBranchAssignmentDto[]> {
+    return this.http.get<UserBranchAssignmentDto[]>(`${environment.apiBaseUrl}/api/branches/users/${userId}`);
   }
 }
 
@@ -168,6 +173,12 @@ export interface AssignUserToBranchRequest {
 export interface RemoveUserFromBranchRequest {
   userId: string;
   branchId: string;
+}
+
+export interface UpdateUserBranchPrimaryRequest {
+  userId: string;
+  branchId: string;
+  isPrimary: boolean;
 }
 
 export interface UserBranchDto {

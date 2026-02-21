@@ -12,4 +12,12 @@
 .from-brand-coral { --tw-gradient-from: var(--brand-coral) var(--tw-gradient-from-position); --tw-gradient-to: rgb(249 158 152 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
 .to-brand-sky { --tw-gradient-to: var(--brand-sky) var(--tw-gradient-to-position); }
 
+/* Scrollable left nav: hide scrollbar while keeping scroll behavior */
+.custom-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 

@@ -12,6 +12,7 @@ import com.chemsys.repository.UserRepository
 import com.chemsys.repository.TenantRepository
 import org.slf4j.LoggerFactory
 import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.OffsetDateTime
@@ -62,12 +63,15 @@ class BranchService(
         val currentTenantId = TenantContext.getCurrentTenant()
             ?: throw RuntimeException("No tenant context found")
         
-        var branches = branchRepository.findByTenantId(currentTenantId)
-        
-        // If no branches exist, create a default "Main Branch"
-        if (branches.isEmpty()) {
-            branches = listOf(createDefaultBranch())
+        // Only create default branch when the TENANT has no branches at all (not when user has no assignments)
+        var allTenantBranches = branchRepository.findByTenantId(currentTenantId)
+        if (allTenantBranches.isEmpty()) {
+            allTenantBranches = listOf(createDefaultBranch())
         }
+        
+        // Return all tenant branches for all roles - dropdowns (transfer, create inventory, etc.) need to show all branches.
+        // Operation-level checks (e.g. canOperateOnItem) restrict what users can actually perform.
+        val branches = allTenantBranches
         
         val userCounts = branches.associate { branch ->
             branch.id!! to userBranchRepository.countUsersByBranchId(branch.id!!)
@@ -142,7 +146,8 @@ class BranchService(
         branchRepository.delete(branch)
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN')")
+    /** Assign a user to a branch; allowed for ADMIN, PLATFORM_ADMIN, and MANAGER (e.g. branch staff assignment). */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','MANAGER')")
     @Transactional
     fun assignUserToBranch(request: AssignUserToBranchRequest): UserBranchAssignmentDto {
         val currentTenantId = TenantContext.getCurrentTenant()
@@ -194,7 +199,8 @@ class BranchService(
         )
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN')")
+    /** Remove a user from a branch; allowed for ADMIN, PLATFORM_ADMIN, and MANAGER. */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','MANAGER')")
     @Transactional
     fun removeUserFromBranch(request: RemoveUserFromBranchRequest) {
         val currentTenantId = TenantContext.getCurrentTenant()
@@ -215,6 +221,54 @@ class BranchService(
             ?: throw RuntimeException("User is not assigned to this branch")
         
         userBranchRepository.delete(userBranch)
+    }
+
+    /**
+     * Updates the primary status of a user's branch assignment.
+     * If setting as primary, removes primary status from all other branches for this user.
+     * Allowed for ADMIN, PLATFORM_ADMIN, and MANAGER (consistent with assign/remove).
+     */
+    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN','MANAGER')")
+    @Transactional
+    fun updateUserBranchPrimary(request: UpdateUserBranchPrimaryRequest): UserBranchAssignmentDto {
+        val currentTenantId = TenantContext.getCurrentTenant()
+            ?: throw RuntimeException("No tenant context found")
+        
+        val user = userRepository.findById(request.userId)
+            .orElseThrow { RuntimeException("User not found with id: ${request.userId}") }
+        
+        if (user.tenant.id != currentTenantId) {
+            throw RuntimeException("Access denied: User belongs to different tenant")
+        }
+        
+        val branch = branchRepository.findByIdAndTenantId(request.branchId, currentTenantId)
+            .orElseThrow { RuntimeException("Branch not found with id: ${request.branchId}") }
+        
+        val userBranch = userBranchRepository.findByUserId(request.userId)
+            .find { it.branch.id == request.branchId }
+            ?: throw RuntimeException("User is not assigned to this branch")
+        
+        // If setting as primary, remove primary from other branches
+        if (request.isPrimary) {
+            userBranchRepository.findByUserId(request.userId)
+                .filter { it.isPrimary && it.branch.id != request.branchId }
+                .forEach { existingPrimary ->
+                    userBranchRepository.save(existingPrimary.copy(isPrimary = false))
+                }
+        }
+        
+        // Update the primary status
+        val updatedUserBranch = userBranchRepository.save(userBranch.copy(isPrimary = request.isPrimary))
+        
+        return UserBranchAssignmentDto(
+            userId = user.id!!,
+            username = user.username,
+            email = user.email,
+            branchId = branch.id!!,
+            branchName = branch.name,
+            isPrimary = updatedUserBranch.isPrimary,
+            assignedAt = updatedUserBranch.assignedAt
+        )
     }
 
 //    @PreAuthorize("hasAnyRole('ADMIN','PLATFORM_ADMIN')")

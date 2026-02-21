@@ -10,6 +10,7 @@ import com.chemsys.config.TenantContext
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.*
 
@@ -59,13 +60,13 @@ class ProductService(
             strength = request.strength,
             dosageForm = request.dosageForm,
             manufacturer = request.manufacturer,
-//            if (request.barcode.isNullOrBlank()) null else request.barcode,
             barcode = if (request.barcode.isNullOrBlank()) null else request.barcode,
-
             requiresPrescription = request.requiresPrescription,
             storageConditions = request.storageConditions,
             minStockLevel = request.minStockLevel,
             maxStockLevel = request.maxStockLevel,
+            unitCost = request.unitCost,
+            sellingPrice = request.sellingPrice,
             tenant = tenant
         )
 
@@ -120,6 +121,8 @@ class ProductService(
             storageConditions = request.storageConditions ?: product.storageConditions,
             minStockLevel = request.minStockLevel ?: product.minStockLevel,
             maxStockLevel = request.maxStockLevel ?: product.maxStockLevel,
+            unitCost = request.unitCost ?: product.unitCost,
+            sellingPrice = request.sellingPrice ?: product.sellingPrice,
             isActive = request.isActive ?: product.isActive,
             updatedAt = java.time.OffsetDateTime.now()
         )
@@ -327,6 +330,8 @@ class ProductService(
             storageConditions = product.storageConditions,
             minStockLevel = product.minStockLevel,
             maxStockLevel = product.maxStockLevel,
+            unitCost = product.unitCost,
+            sellingPrice = product.sellingPrice,
             tenantId = product.tenant.id!!,
             tenantName = product.tenant.name,
             totalQuantity = totalQuantity,

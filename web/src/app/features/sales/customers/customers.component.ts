@@ -9,8 +9,13 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from '@angular/router';
 
+import { PrimaryButtonComponent, SecondaryButtonComponent, IconButtonComponent } from '../../../shared/components';
 import { SalesService, CustomerDto, SearchCustomersRequest, CreateCustomerRequest, UpdateCustomerRequest } from '../../../core/services/sales.service';
 import { CreditService } from '../../../core/services/credit.service';
 import { ErrorService } from '../../../core/services/error.service';
@@ -37,7 +42,14 @@ import { ErrorService } from '../../../core/services/error.service';
     MatCardModule,
     MatTableModule,
     MatPaginatorModule,
-    MatDialogModule
+    MatDialogModule,
+    MatFormFieldModule,
+    MatMenuModule,
+    MatTooltipModule,
+    MatProgressSpinnerModule,
+    PrimaryButtonComponent,
+    SecondaryButtonComponent,
+    IconButtonComponent
   ],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss'
@@ -233,12 +245,7 @@ export class CustomersComponent implements OnInit {
       this.errorService.show('First name is required');
       return false;
     }
-    
-    if (!form.lastName.trim()) {
-      this.errorService.show('Last name is required');
-      return false;
-    }
-    
+
     return true;
   }
 
@@ -258,7 +265,7 @@ export class CustomersComponent implements OnInit {
    * Gets the full name of a customer
    */
   getCustomerFullName(customer: CustomerDto): string {
-    return `${customer.firstName} ${customer.lastName}`;
+    return [customer.firstName, customer.lastName].filter(Boolean).join(' ').trim() || customer.firstName;
   }
 
   /**
@@ -282,9 +289,12 @@ export class CustomersComponent implements OnInit {
   }
 
   /**
-   * Views customer sales
+   * Navigates to the sales list view with a filter so only this customer's sales are shown.
    */
-  viewCustomerSales(customerId: string): void {
-    this.router.navigate(['/sales'], { queryParams: { customerId } });
+  viewCustomerSales(customer: CustomerDto): void {
+    const name = this.getCustomerFullName(customer);
+    this.router.navigate(['/sales'], {
+      queryParams: { customerId: customer.id, customerName: name || undefined }
+    });
   }
 }

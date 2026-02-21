@@ -26,6 +26,13 @@ export interface SalesStats {
   salesCountThisMonth: number;
   salesCountThisYear: number;
   averageSaleValue: number;
+  /** Total commission (earnings) for the cashier this month; only set when viewing as CASHIER/MANAGER. */
+  cashierTotalEarnings?: number | null;
+  /** Cashier commission per period; only set when viewing as CASHIER/MANAGER. */
+  cashierEarningsToday?: number | null;
+  cashierEarningsThisWeek?: number | null;
+  cashierEarningsThisMonth?: number | null;
+  cashierEarningsThisYear?: number | null;
 }
 
 export interface InventoryStats {
@@ -95,6 +102,8 @@ export interface RecentSale {
   totalAmount: number;
   saleDate: string;
   status: string;
+  /** What was sold (e.g. "Paracetamol x2, Soap x1") — shown prominently on dashboard. */
+  lineItemsSummary?: string;
 }
 
 export interface LowStockProduct {
@@ -135,8 +144,8 @@ export class DashboardService {
     const now = Date.now();
     const isCacheValid = !forceRefresh && (now - this.lastFetchTime) < this.CACHE_DURATION;
 
-    // Return cached data if valid
-    if (isCacheValid && this.statsCache$.value && !branchId) {
+    // Return cached data if valid (only when branchId provided - CASHIER/MANAGER get user-scoped stats, don't cache)
+    if (isCacheValid && this.statsCache$.value && branchId) {
       return this.stats$ as Observable<DashboardStats>;
     }
 
@@ -247,5 +256,41 @@ export class DashboardService {
   refreshStats(branchId?: string): Observable<DashboardStats> {
     return this.getDashboardStats(branchId, true);
   }
+
+  /**
+   * Get onboarding status for guided setup flow
+   */
+  getOnboardingStatus(): Observable<OnboardingStatus> {
+    return this.http.get<OnboardingStatus>(`${this.baseUrl}/onboarding`);
+  }
+}
+
+/**
+ * Onboarding status DTOs
+ */
+export interface OnboardingStatus {
+  hasBranches: boolean;
+  hasUsers: boolean;
+  hasProducts: boolean;
+  hasInventory: boolean;
+  currentStep: OnboardingStep;
+  steps: OnboardingStepInfo[];
+}
+
+export interface OnboardingStepInfo {
+  step: OnboardingStep;
+  title: string;
+  description: string;
+  completed: boolean;
+  route: string;
+  icon: string;
+}
+
+export enum OnboardingStep {
+  SETUP_BRANCHES = 'SETUP_BRANCHES',
+  ADD_USERS = 'ADD_USERS',
+  ADD_PRODUCTS = 'ADD_PRODUCTS',
+  MANAGE_INVENTORY = 'MANAGE_INVENTORY',
+  COMPLETED = 'COMPLETED'
 }
 

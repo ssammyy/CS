@@ -1,0 +1,32 @@
+/**
+ * Reports layout styles.
+ * Ensures tab group and tab body have visible height so report content is not blank
+ * (Angular Material tab body can collapse to zero height otherwise).
+ */
+:host {
+  display: block;
+  min-height: 100%;
+}
+
+.min-h-screen {
+  min-height: 100%;
+}
+
+// Force the tab body wrapper and content to take space so the first tab's content is visible
+::ng-deep {
+  .mat-mdc-tab-group {
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+  }
+
+  .mat-mdc-tab-body-wrapper {
+    flex: 1;
+    min-height: 400px;
+  }
+
+  .mat-mdc-tab-body-content {
+    min-height: 400px;
+    padding: 0;
+  }
+}

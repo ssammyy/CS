@@ -26,7 +26,19 @@ data class SalesStatsDto(
     val salesCountThisWeek: Long,
     val salesCountThisMonth: Long,
     val salesCountThisYear: Long,
-    val averageSaleValue: BigDecimal
+    val averageSaleValue: BigDecimal,
+    /**
+     * Total commission (earnings) for the cashier this month; backward compatible.
+     * Prefer cashierEarningsThisMonth for new code.
+     */
+    val cashierTotalEarnings: BigDecimal? = null,
+    /**
+     * Cashier commission (15% of profit) per period. Only populated when stats are for a cashier (CASHIER/MANAGER).
+     */
+    val cashierEarningsToday: BigDecimal? = null,
+    val cashierEarningsThisWeek: BigDecimal? = null,
+    val cashierEarningsThisMonth: BigDecimal? = null,
+    val cashierEarningsThisYear: BigDecimal? = null
 )
 
 data class InventoryStatsDto(
@@ -89,13 +101,18 @@ data class TopProductDto(
     val salesCount: Long
 )
 
+/**
+ * DTO for a recent sale in dashboard stats.
+ * @param lineItemsSummary What was sold (e.g. "Paracetamol x2, Soap x1") for quick scanability.
+ */
 data class RecentSaleDto(
     val saleId: String,
     val saleNumber: String,
     val customerName: String?,
     val totalAmount: BigDecimal,
     val saleDate: String,
-    val status: String
+    val status: String,
+    val lineItemsSummary: String = ""
 )
 
 data class LowStockProductDto(
@@ -105,6 +122,35 @@ data class LowStockProductDto(
     val minStockLevel: Int,
     val daysUntilStockOut: Int?
 )
+
+/**
+ * DTOs for onboarding/guided setup flow
+ */
+data class OnboardingStatusDto(
+    val hasBranches: Boolean,
+    val hasUsers: Boolean,
+    val hasProducts: Boolean,
+    val hasInventory: Boolean,
+    val currentStep: OnboardingStep,
+    val steps: List<OnboardingStepDto>
+)
+
+data class OnboardingStepDto(
+    val step: OnboardingStep,
+    val title: String,
+    val description: String,
+    val completed: Boolean,
+    val route: String,
+    val icon: String
+)
+
+enum class OnboardingStep {
+    SETUP_BRANCHES,
+    ADD_USERS,
+    ADD_PRODUCTS,
+    MANAGE_INVENTORY,
+    COMPLETED
+}
 
 
 

@@ -65,8 +65,6 @@ export class BranchContextService {
    * Set the available branches for the current user
    */
   setAvailableBranches(branches: BranchDto[]): void {
-    console.log('🔧 Setting available branches:', branches.length, branches.map(b => ({ id: b.id, name: b.name })));
-    
     // Check if this is a different tenant (different branch IDs)
     const currentTenantBranches = this.availableBranchesSubject.value;
     const isNewTenant = currentTenantBranches.length > 0 && branches.length > 0 && 
@@ -80,8 +78,6 @@ export class BranchContextService {
     }
     
     this.availableBranchesSubject.next(branches);
-    console.log('✅ Available branches set in context service');
-    
     // Note: Auto-restoration removed to prevent conflicts with ShellComponent logic
     // The ShellComponent will handle restoration after setting available branches
   }
@@ -90,23 +86,13 @@ export class BranchContextService {
    * Set the current branch
    */
   setCurrentBranch(branch: BranchDto | null): void {
-    // Get stack trace to see where this is being called from
-    const stackTrace = new Error().stack;
-    const caller = stackTrace?.split('\n')[2]?.trim() || 'unknown';
-    
-    console.log('🎯 Setting current branch:', branch ? `${branch.name} (${branch.id})` : 'null');
-    console.log('📍 Called from:', caller);
-    console.log('🔄 Previous branch was:', this.currentBranchSubject.value?.name || 'null');
-    
     this.currentBranchSubject.next(branch);
     
     // Store in localStorage for persistence
     if (branch) {
       localStorage.setItem('currentBranchId', branch.id);
-      console.log('💾 Stored branch ID in localStorage:', branch.id);
     } else {
       localStorage.removeItem('currentBranchId');
-      console.log('🗑️ Removed branch ID from localStorage');
     }
   }
 

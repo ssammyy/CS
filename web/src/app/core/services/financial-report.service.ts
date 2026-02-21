@@ -16,6 +16,9 @@ export interface FinancialReportDto {
   totalCreditSales: number;
   totalCashSales: number;
   creditPaymentsReceived: number;
+  totalExpenses: number;
+  grossProfitAfterExpense: number;
+  expenseAsPercentOfRevenue: number;
   revenueByPaymentMethod: PaymentMethodRevenueDto[];
   dailyRevenue: DailyRevenueDto[];
 }
@@ -114,32 +117,32 @@ export class FinancialReportService {
 
     currentY += 35;
 
-    // Revenue Breakdown
+    // Expense & profit breakdown
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(12);
     pdf.setTextColor(0, 0, 0);
-    pdf.text('Revenue Breakdown', 15, currentY);
+    pdf.text('Expense & Profit', 15, currentY);
     currentY += 8;
 
     const rgb = this.pdfService['hexToRgb'](SYSTEM_THEME_COLORS.mint);
     pdf.setFillColor(rgb[0] + 30, rgb[1] + 30, rgb[2] + 30);
-    pdf.roundedRect(15, currentY, 70, 35, 2, 2, 'F');
+    pdf.roundedRect(15, currentY, 70, 42, 2, 2, 'F');
 
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(9);
     pdf.setTextColor(0, 0, 0);
     let subY = currentY + 5;
 
-    pdf.text(`Cash Sales: ${this.formatCurrency(report.totalCashSales)}`, 18, subY);
-    subY += 7;
-    pdf.text(`Credit Sales: ${this.formatCurrency(report.totalCreditSales)}`, 18, subY);
-    subY += 7;
-    pdf.text(`Payments Received: ${this.formatCurrency(report.creditPaymentsReceived)}`, 18, subY);
-    subY += 7;
     pdf.text(`Total Cost: ${this.formatCurrency(report.totalCost)}`, 18, subY);
+    subY += 7;
+    pdf.text(`Total Expenses: ${this.formatCurrency(report.totalExpenses ?? 0)}`, 18, subY);
+    subY += 7;
+    pdf.text(`Gross Profit After Expense: ${this.formatCurrency(report.grossProfitAfterExpense ?? report.grossProfit)}`, 18, subY);
+    subY += 7;
+    pdf.text(`Expense % of Revenue: ${(report.expenseAsPercentOfRevenue ?? 0).toFixed(2)}%`, 18, subY);
 
     // Payment Method Table
-    currentY += 40;
+    currentY += 47;
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(12);
     pdf.text('Revenue by Payment Method', 15, currentY);

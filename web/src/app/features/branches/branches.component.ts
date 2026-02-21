@@ -115,8 +115,26 @@ export class BranchesComponent implements OnInit {
    * Opens the edit branch dialog.
    */
   editBranch(branch: BranchDto): void {
-    // TODO: Implement edit branch functionality
-    console.log('Edit branch:', branch);
+    const dialogRef = this.dialog.open(CreateBranchDialogComponent, {
+      data: { branch },
+      panelClass: 'mat-elevation-z4'
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result && result.id) {
+        // Extract the branch ID and update data
+        const { id, ...updateData } = result;
+        this.branchesService.updateBranch(id, updateData).subscribe({
+          next: () => {
+            this.snackBar.open('Branch updated successfully', 'Close', { duration: 3000 });
+          },
+          error: (error) => {
+            console.error('Error updating branch:', error);
+            this.snackBar.open('Failed to update branch', 'Close', { duration: 3000 });
+          }
+        });
+      }
+    });
   }
 
   /**

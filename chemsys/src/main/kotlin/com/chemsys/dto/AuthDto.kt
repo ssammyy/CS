@@ -17,7 +17,17 @@ data class LoginResponse(
     val token: String,
     val tokenType: String = "Bearer",
     val expiresIn: Long,
-    val user: UserDto
+    val user: UserDto,
+    val requiresPasswordChange: Boolean = false
+)
+
+data class ChangePasswordRequest(
+    @field:NotBlank(message = "Current password is required")
+    val currentPassword: String,
+
+    @field:NotBlank(message = "New password is required")
+    @field:Size(min = 6, message = "New password must be at least 6 characters")
+    val newPassword: String
 )
 
 /**

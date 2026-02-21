@@ -33,7 +33,7 @@ class MpesaController(
             val config = mpesaConfigService.getMpesaConfiguration()
             ResponseEntity.ok(config)
         } catch (e: Exception) {
-            logger.error("Error fetching M-Pesa configuration: ${e.message}", e)
+            logger.error("Error fetching M-Pesa configuration: ${e.message}")
             ResponseEntity.internalServerError().build()
         }
     }

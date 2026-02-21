@@ -72,95 +72,131 @@ export interface EditProductDialogData {
             </mat-form-field>
           </div>
 
-          <mat-form-field class="w-full" color="primary">
-            <mat-label>Description</mat-label>
-            <textarea
-              matInput
-              name="description"
-              [(ngModel)]="product.description"
-              rows="3"
-              placeholder="Product description, usage instructions, and any important notes..."></textarea>
-          </mat-form-field>
+<!--          <mat-form-field class="w-full" color="primary">-->
+<!--            <mat-label>Description</mat-label>-->
+<!--            <textarea-->
+<!--              matInput-->
+<!--              name="description"-->
+<!--              [(ngModel)]="product.description"-->
+<!--              rows="3"-->
+<!--              placeholder="Product description, usage instructions, and any important notes..."></textarea>-->
+<!--          </mat-form-field>-->
         </div>
 
         <!-- Product Specifications Section -->
+<!--        <div class="bg-white rounded-lg shadow p-6">-->
+<!--          <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">-->
+<!--            <mat-icon class="text-brand-sky">science</mat-icon>-->
+<!--            Product Specifications-->
+<!--          </h3>-->
+
+<!--          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">-->
+<!--            <mat-form-field class="w-full" color="primary">-->
+<!--              <mat-label>Strength / Size</mat-label>-->
+<!--              <input-->
+<!--                matInput-->
+<!--                name="strength"-->
+<!--                [(ngModel)]="product.strength"-->
+<!--                placeholder="e.g., 500g, 10L, Size M" />-->
+<!--            </mat-form-field>-->
+
+<!--            <mat-form-field class="w-full" color="primary">-->
+<!--              <mat-label>Dosage Form</mat-label>-->
+<!--              <mat-select name="dosageForm" [(ngModel)]="product.dosageForm">-->
+<!--                <mat-option value="">Select Form</mat-option>-->
+<!--                <mat-option value="Tablet">Tablet</mat-option>-->
+<!--                <mat-option value="Capsule">Capsule</mat-option>-->
+<!--                <mat-option value="Syrup">Syrup</mat-option>-->
+<!--                <mat-option value="Injection">Injection</mat-option>-->
+<!--                <mat-option value="Cream">Cream</mat-option>-->
+<!--                <mat-option value="Ointment">Ointment</mat-option>-->
+<!--                <mat-option value="Drops">Drops</mat-option>-->
+<!--                <mat-option value="Inhaler">Inhaler</mat-option>-->
+<!--                <mat-option value="Suppository">Suppository</mat-option>-->
+<!--                <mat-option value="Patch">Patch</mat-option>-->
+<!--                <mat-option value="Other">Other</mat-option>-->
+<!--              </mat-select>-->
+<!--            </mat-form-field>-->
+
+<!--            <mat-form-field class="w-full" color="primary">-->
+<!--              <mat-label>Manufacturer</mat-label>-->
+<!--              <input-->
+<!--                matInput-->
+<!--                name="manufacturer"-->
+<!--                [(ngModel)]="product.manufacturer"-->
+<!--                placeholder="e.g., Pfizer, GlaxoSmithKline" />-->
+<!--            </mat-form-field>-->
+<!--          </div>-->
+<!--        </div>-->
+
+        <!-- Pricing Section (product-level cost and selling price) -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <mat-icon class="text-brand-sky">science</mat-icon>
-            Product Specifications
+            <mat-icon class="text-brand-sky">payments</mat-icon>
+            Pricing
           </h3>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <mat-form-field class="w-full" color="primary">
-              <mat-label>Strength / Size</mat-label>
+              <mat-label>Unit Cost (KES)</mat-label>
               <input
                 matInput
-                name="strength"
-                [(ngModel)]="product.strength"
-                placeholder="e.g., 500g, 10L, Size M" />
+                type="number"
+                name="unitCost"
+                [(ngModel)]="product.unitCost"
+                min="0"
+                step="0.01"
+                placeholder="Cost price" />
+              <mat-hint>Cost price per unit</mat-hint>
             </mat-form-field>
 
             <mat-form-field class="w-full" color="primary">
-              <mat-label>Dosage Form</mat-label>
-              <mat-select name="dosageForm" [(ngModel)]="product.dosageForm">
-                <mat-option value="">Select Form</mat-option>
-                <mat-option value="Tablet">Tablet</mat-option>
-                <mat-option value="Capsule">Capsule</mat-option>
-                <mat-option value="Syrup">Syrup</mat-option>
-                <mat-option value="Injection">Injection</mat-option>
-                <mat-option value="Cream">Cream</mat-option>
-                <mat-option value="Ointment">Ointment</mat-option>
-                <mat-option value="Drops">Drops</mat-option>
-                <mat-option value="Inhaler">Inhaler</mat-option>
-                <mat-option value="Suppository">Suppository</mat-option>
-                <mat-option value="Patch">Patch</mat-option>
-                <mat-option value="Other">Other</mat-option>
-              </mat-select>
-            </mat-form-field>
-
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Manufacturer</mat-label>
+              <mat-label>Selling Price (KES)</mat-label>
               <input
                 matInput
-                name="manufacturer"
-                [(ngModel)]="product.manufacturer"
-                placeholder="e.g., Pfizer, GlaxoSmithKline" />
+                type="number"
+                name="sellingPrice"
+                [(ngModel)]="product.sellingPrice"
+                min="0"
+                step="0.01"
+                placeholder="Selling price" />
+              <mat-hint>Default selling price per unit</mat-hint>
             </mat-form-field>
           </div>
         </div>
 
         <!-- Identification & Storage Section -->
-        <div class="bg-white rounded-lg shadow p-6">
-          <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <mat-icon class="text-brand-sky">qr_code</mat-icon>
-            Identification & Storage
-          </h3>
+<!--        <div class="bg-white rounded-lg shadow p-6">-->
+<!--          <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">-->
+<!--            <mat-icon class="text-brand-sky">qr_code</mat-icon>-->
+<!--            Identification & Storage-->
+<!--          </h3>-->
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Barcode</mat-label>
-              <input
-                matInput
-                name="barcode"
-                [(ngModel)]="product.barcode"
-                placeholder="e.g., 1234567890123" />
-            </mat-form-field>
+<!--          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">-->
+<!--            <mat-form-field class="w-full" color="primary">-->
+<!--              <mat-label>Barcode</mat-label>-->
+<!--              <input-->
+<!--                matInput-->
+<!--                name="barcode"-->
+<!--                [(ngModel)]="product.barcode"-->
+<!--                placeholder="e.g., 1234567890123" />-->
+<!--            </mat-form-field>-->
 
-            <mat-form-field class="w-full" color="primary">
-              <mat-label>Storage Conditions</mat-label>
-              <mat-select name="storageConditions" [(ngModel)]="product.storageConditions">
-                <mat-option value="">Select Conditions</mat-option>
-                <mat-option value="Room Temperature (15-25°C)">Room Temperature (15-25°C)</mat-option>
-                <mat-option value="Refrigerated (2-8°C)">Refrigerated (2-8°C)</mat-option>
-                <mat-option value="Frozen (-20°C)">Frozen (-20°C)</mat-option>
-                <mat-option value="Protect from Light">Protect from Light</mat-option>
-                <mat-option value="Keep Dry">Keep Dry</mat-option>
-                <mat-option value="Controlled Room Temperature">Controlled Room Temperature</mat-option>
-                <mat-option value="Cool Place (8-15°C)">Cool Place (8-15°C)</mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
-        </div>
+<!--            <mat-form-field class="w-full" color="primary">-->
+<!--              <mat-label>Storage Conditions</mat-label>-->
+<!--              <mat-select name="storageConditions" [(ngModel)]="product.storageConditions">-->
+<!--                <mat-option value="">Select Conditions</mat-option>-->
+<!--                <mat-option value="Room Temperature (15-25°C)">Room Temperature (15-25°C)</mat-option>-->
+<!--                <mat-option value="Refrigerated (2-8°C)">Refrigerated (2-8°C)</mat-option>-->
+<!--                <mat-option value="Frozen (-20°C)">Frozen (-20°C)</mat-option>-->
+<!--                <mat-option value="Protect from Light">Protect from Light</mat-option>-->
+<!--                <mat-option value="Keep Dry">Keep Dry</mat-option>-->
+<!--                <mat-option value="Controlled Room Temperature">Controlled Room Temperature</mat-option>-->
+<!--                <mat-option value="Cool Place (8-15°C)">Cool Place (8-15°C)</mat-option>-->
+<!--              </mat-select>-->
+<!--            </mat-form-field>-->
+<!--          </div>-->
+<!--        </div>-->
 
         <!-- Stock Management Section -->
         <div class="bg-white rounded-lg shadow p-6">
@@ -204,17 +240,17 @@ export interface EditProductDialogData {
           </h3>
 
           <div class="space-y-4">
-            <div class="flex items-center gap-3 p-3 bg-white rounded-lg border">
-              <mat-checkbox
-                name="requiresPrescription"
-                [(ngModel)]="product.requiresPrescription"
-                color="primary">
-              </mat-checkbox>
-              <div>
-                <span class="text-sm font-medium text-gray-700">This product requires a prescription</span>
-                <p class="text-xs text-gray-500 mt-1">Check this box if the product can only be dispensed with a valid prescription</p>
-              </div>
-            </div>
+<!--            <div class="flex items-center gap-3 p-3 bg-white rounded-lg border">-->
+<!--              <mat-checkbox-->
+<!--                name="requiresPrescription"-->
+<!--                [(ngModel)]="product.requiresPrescription"-->
+<!--                color="primary">-->
+<!--              </mat-checkbox>-->
+<!--              <div>-->
+<!--                <span class="text-sm font-medium text-gray-700">This product requires a prescription</span>-->
+<!--                <p class="text-xs text-gray-500 mt-1">Check this box if the product can only be dispensed with a valid prescription</p>-->
+<!--              </div>-->
+<!--            </div>-->
 
             <div class="flex items-center gap-3 p-3 bg-white rounded-lg border">
               <mat-checkbox
@@ -304,6 +340,8 @@ export class EditProductDialogComponent implements OnInit {
       storageConditions: this.data.product.storageConditions,
       minStockLevel: this.data.product.minStockLevel,
       maxStockLevel: this.data.product.maxStockLevel,
+      unitCost: this.data.product.unitCost ?? undefined,
+      sellingPrice: this.data.product.sellingPrice ?? undefined,
       isActive: this.data.product.isActive
     };
   }

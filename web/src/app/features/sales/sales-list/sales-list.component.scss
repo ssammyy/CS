@@ -1,103 +1,362 @@
-/* Sales List Component Styles following UI Design Language Rule */
-/* Uses approved color palette: Mint Green (#CBEBD0), Light Blue (#A1C7F8), Soft Coral (#F99E98) */
+/* Sales List Component – Material Design, UI Design Language Rule */
+/* Palette: Mint #CBEBD0, Light Blue #A1C7F8, Soft Coral #F99E98 */
 
 .sales-list-container {
   @apply h-full flex flex-col bg-gray-50;
 }
 
+/* Header */
 .sales-header {
   @apply flex items-center justify-between p-6 bg-white border-b border-gray-200;
 }
 
+.header-left {
+  @apply flex items-center gap-4;
+}
+
+.sales-title {
+  @apply text-2xl font-semibold text-gray-900 m-0;
+}
+
+.transaction-count {
+  @apply flex items-center gap-2 text-sm text-gray-600;
+
+  .count-icon {
+    @apply text-base;
+  }
+
+  &.invalid-context {
+    @apply text-red-600;
+  }
+}
+
+.invalid-badge {
+  @apply text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full;
+}
+
+.header-actions {
+  @apply flex items-center gap-3;
+}
+
+.new-sale-btn mat-icon {
+  @apply mr-1;
+}
+
+/* Branch warning card */
+.branch-warning-card {
+  @apply mx-6 mt-4 border-red-200 bg-red-50;
+}
+
+.warning-content {
+  @apply flex items-center gap-3 p-0;
+}
+
+.warning-icon {
+  @apply text-red-600;
+}
+
+.warning-text {
+  @apply flex flex-col;
+}
+
+.warning-title {
+  @apply text-sm font-medium text-red-800 m-0;
+}
+
+.warning-message {
+  @apply text-sm text-red-600 m-0 mt-1;
+}
+
+/* Customer filter banner (when opened from customers "View Sales") */
+.customer-filter-banner {
+  @apply mx-6 mt-4 border-brand-sky/30 bg-brand-sky/10;
+}
+
+.customer-filter-banner mat-card-content {
+  @apply flex flex-wrap items-center gap-2 p-3;
+}
+
+.customer-filter-banner .banner-icon {
+  @apply text-brand-sky text-lg;
+}
+
+.customer-filter-banner .banner-text {
+  @apply text-sm text-gray-700 flex-1;
+}
+
+.customer-filter-banner .clear-filter-btn {
+  @apply flex items-center gap-1;
+}
+
+/* Summary section */
+.summary-section {
+  @apply mb-6 mx-6;
+
+  @media (max-width: 640px) {
+    @apply mx-3 mb-4;
+  }
+}
+
+.summary-heading {
+  @apply text-lg font-semibold text-gray-900 mb-3 m-0;
+}
+
+.summary-subtitle {
+  @apply text-sm text-gray-500 mb-3 m-0;
+}
+
+.summary-loading {
+  @apply flex items-center gap-2 py-4 text-gray-500;
+}
+
+.summary-cards {
+  @apply grid sm:gap-4;
+  gap: 0.5rem;
+  grid-template-columns: repeat(2, 1fr);
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.stat-card {
+  @apply overflow-hidden;
+
+  mat-card-content {
+    @apply p-4 m-0;
+  }
+
+  @media (max-width: 640px) {
+    mat-card-content {
+      @apply p-3 m-0;
+    }
+  }
+}
+
+.stat-today {
+  border-left: 4px solid var(--brand-sky, #A1C7F8);
+}
+
+.stat-week {
+  border-left: 4px solid var(--brand-mint, #CBEBD0);
+}
+
+.stat-month {
+  border-left: 4px solid var(--brand-coral, #F99E98);
+}
+
+.stat-year {
+  border-left: 4px solid #9ca3af;
+}
+
+.stat-avg {
+  border-left: 4px solid #d1d5db;
+  grid-column: span 2;
+
+  @media (min-width: 768px) {
+    grid-column: span 1;
+  }
+}
+
+/* My Earnings card (cashier view): green, bullish */
+.stat-card.stat-earnings {
+  border-left-color: #059669;
+  background-color: rgba(203, 235, 208, 0.25);
+
+  .stat-icon {
+    color: #059669;
+  }
+}
+
+.stat-content {
+  @apply flex items-center justify-between gap-2;
+  min-width: 0;
+}
+
+.stat-details {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.stat-label {
+  @apply text-xs font-medium text-gray-600 m-0;
+}
+
+/* Amount scales down on small devices so it fits in the card */
+.stat-value {
+  @apply font-bold text-gray-900 m-0 mt-0.5;
+  font-size: clamp(0.75rem, 2.5vw + 0.5rem, 1.125rem);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  @media (min-width: 640px) {
+    font-size: 1.125rem; /* text-lg */
+  }
+}
+
+.stat-meta {
+  @apply text-xs text-gray-500 m-0 mt-0.5;
+}
+
+.stat-icon {
+  flex-shrink: 0;
+  margin-left: 0.25rem;
+
+  @media (max-width: 640px) {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+  }
+}
+
+.stat-today .stat-icon { color: var(--brand-sky, #A1C7F8); }
+.stat-week .stat-icon { color: var(--brand-mint, #CBEBD0); }
+.stat-month .stat-icon { color: var(--brand-coral, #F99E98); }
+.stat-year .stat-icon { @apply text-gray-500; }
+.stat-avg .stat-icon { @apply text-gray-400; }
+
+/* Search and filters */
 .search-filters {
-  @apply bg-white border-b border-gray-200 p-6 space-y-4;
+  @apply bg-white border-b border-gray-200 p-6;
+
+  &.disabled {
+    @apply opacity-50 pointer-events-none;
+  }
 }
 
-.search-section {
+.search-row {
+  @apply flex flex-col gap-4;
+  @media (min-width: 768px) {
+    @apply flex-row items-start;
+  }
+}
+
+.search-field {
+  flex: 1;
+  min-width: 0;
+  @media (min-width: 768px) {
+    max-width: 400px;
+  }
+}
+
+.filters-panel {
   @apply w-full;
-}
-
-.search-input {
-  @apply relative;
-  
-  .search-icon {
-    @apply absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400;
-  }
-  
-  .search-field {
-    @apply w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg;
-    @apply focus:border-brand-sky focus:ring-2 focus:ring-brand-sky/20;
-    @apply transition-colors duration-200;
+  @media (min-width: 768px) {
+    flex: 0 0 auto;
+    width: auto;
   }
 }
 
-.filters-section {
-  @apply flex flex-wrap items-end gap-4;
+.panel-icon {
+  @apply mr-2 align-middle;
 }
 
-.filter-group {
-  @apply flex flex-col gap-2 min-w-48;
-  
-  .filter-label {
-    @apply text-sm font-medium text-gray-700;
+.filters-grid {
+  @apply grid gap-4;
+  grid-template-columns: 1fr;
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
   }
-  
-  .filter-select,
-  .filter-input {
-    @apply px-3 py-2 border border-gray-200 rounded-lg;
-    @apply focus:border-brand-mint focus:ring-2 focus:ring-brand-mint/20;
-    @apply transition-colors duration-200;
+  @media (min-width: 900px) {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-.clear-filters-btn {
-  @apply inline-flex items-center gap-2 px-4 py-2 border border-gray-200 text-gray-700;
-  @apply rounded-lg hover:bg-gray-50 transition-colors duration-200;
+/* Material filled form fields: full width, no subscript gap, min height so label + input don't overlap */
+.filters-grid mat-form-field,
+.filter-form-field {
+  @apply w-full;
+  display: block;
+  min-width: 0; /* allow grid to shrink */
 }
 
-.sales-table-container {
-  @apply flex-1 bg-white m-6 rounded-lg border border-gray-200 overflow-hidden;
-  height: calc(100vh - 200px); /* Adjust based on header and filter heights */
+.filters-grid .mat-mdc-form-field-subscript-wrapper {
+  display: none;
+}
+
+.filters-actions {
+  @apply mt-4 pt-4 border-t border-gray-200;
+}
+
+/* Filtered total bar */
+.filtered-total-bar {
+  @apply flex items-center justify-end gap-2 px-6 py-3 bg-brand-mint/30 border-b border-brand-sky/30 text-gray-800;
+}
+
+.filtered-total-label {
+  @apply text-sm font-medium text-gray-700;
+}
+
+.filtered-total-amount {
+  @apply text-lg font-bold text-brand-sky;
+}
+
+/* Table card */
+.sales-table-card {
+  @apply flex-1 mx-6 my-4 overflow-hidden;
   min-height: 400px;
+  height: calc(100vh - 280px);
+
+  &.disabled {
+    @apply opacity-50 pointer-events-none;
+  }
+}
+
+.table-card-content {
+  @apply p-0 h-full flex flex-col;
 }
 
 .loading-state {
   @apply flex flex-col items-center justify-center py-12;
-  
+
   p {
-    @apply mt-4 text-gray-600;
+    @apply mt-4 text-gray-600 m-0;
   }
 }
 
 .empty-state {
   @apply flex flex-col items-center justify-center py-12 text-center;
-  
-  h3 {
-    @apply mt-4;
+
+  .empty-icon {
+    @apply text-6xl text-gray-300;
   }
-  
+
+  h3 {
+    @apply text-lg font-medium text-gray-900 mt-4 m-0;
+  }
+
   p {
-    @apply mt-2;
+    @apply text-gray-500 mt-2 m-0;
   }
 }
 
+.empty-action mat-icon {
+  @apply mr-1;
+}
+
 .table-wrapper {
-  @apply overflow-auto;
-  height: 100%;
-  max-height: calc(100vh - 300px); /* Adjust based on header, filters, and pagination */
+  @apply overflow-auto flex-1;
+  max-height: calc(100vh - 380px);
 }
 
 .sales-table {
   @apply w-full;
-  
+
   .mat-mdc-header-cell {
     @apply bg-gray-50 text-gray-700 font-semibold border-b border-gray-200;
   }
-  
+
   .mat-mdc-cell {
     @apply border-b border-gray-100;
   }
-  
+
   .table-row {
     @apply hover:bg-gray-50 transition-colors duration-200;
   }
@@ -107,16 +366,20 @@
   @apply font-medium text-brand-sky;
 }
 
+.branch-info {
+  @apply text-sm text-gray-900;
+}
+
 .customer-info {
   @apply flex flex-col;
-  
-  .customer-name {
-    @apply font-medium text-gray-900;
-  }
-  
-  .customer-phone {
-    @apply text-sm text-gray-500;
-  }
+}
+
+.customer-name {
+  @apply font-medium text-gray-900;
+}
+
+.customer-phone {
+  @apply text-sm text-gray-500;
 }
 
 .total-amount {
@@ -133,22 +396,22 @@
 
 .returned-badge {
   @apply inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium;
-  
+
   .returned-icon {
     @apply text-xs;
   }
-  
+
   &.full-return {
     @apply bg-red-100 text-red-800;
-    
+
     .returned-icon {
       @apply text-red-600;
     }
   }
-  
+
   &.partial-return {
     @apply bg-orange-100 text-orange-800;
-    
+
     .returned-icon {
       @apply text-orange-600;
     }
@@ -157,10 +420,10 @@
 
 .payment-method {
   @apply flex items-center gap-2;
-  
-  .payment-icon {
-    @apply text-gray-400 text-base;
-  }
+}
+
+.payment-icon {
+  @apply text-gray-400 text-base;
 }
 
 .sale-date {
@@ -171,117 +434,75 @@
   @apply text-sm text-gray-700;
 }
 
-.action-buttons {
-  @apply flex items-center gap-2;
+.commission-amount {
+  @apply text-sm font-semibold text-gray-900;
 }
 
-.action-btn {
-  @apply w-8 h-8 flex items-center justify-center rounded-lg border transition-colors duration-200;
-  
-  &.view-btn {
-    @apply border-brand-sky text-brand-sky hover:bg-brand-sky/10;
-  }
-  
-  &.print-btn {
-    @apply border-brand-mint text-brand-mint hover:bg-brand-mint/10;
-  }
-  
-  &.return-btn {
-    @apply border-brand-coral text-brand-coral hover:bg-brand-coral/10;
+.action-menu-trigger {
+  @apply text-gray-600 hover:text-brand-sky;
+}
+
+::ng-deep .sale-actions-menu {
+  .mat-mdc-menu-item {
+    .mat-icon {
+      @apply text-brand-sky;
+    }
+    &:hover {
+      @apply bg-brand-mint/20;
+    }
   }
 }
 
 .pagination-container {
   @apply bg-white border-t border-gray-200 px-6 py-4;
-}
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .filters-section {
-    @apply flex-col items-stretch;
-  }
-  
-  .filter-group {
-    @apply min-w-full;
+  &.disabled {
+    @apply opacity-50 pointer-events-none;
   }
 }
 
+/* Responsive */
 @media (max-width: 768px) {
   .sales-header {
     @apply flex-col gap-4 items-start;
   }
-  
+
   .search-filters {
     @apply p-4;
   }
-  
-  .sales-table-container {
-    @apply m-4;
-    height: calc(100vh - 150px);
+
+  .sales-table-card {
+    @apply mx-4;
+    height: calc(100vh - 240px);
     min-height: 300px;
   }
-  
+
   .table-wrapper {
-    max-height: calc(100vh - 200px);
-  }
-  
-  .action-buttons {
-    @apply flex-col gap-1;
-  }
-  
-  .action-btn {
-    @apply w-6 h-6;
+    max-height: calc(100vh - 320px);
   }
 }
 
-/* Animation for loading states */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Focus states for accessibility */
-button:focus,
-input:focus,
-select:focus {
-  @apply outline-none ring-2 ring-brand-sky/50;
-}
-
-/* High contrast mode support */
 @media (prefers-contrast: high) {
   .sales-table {
     .mat-mdc-header-cell {
       @apply border-b-2 border-gray-400;
     }
-    
     .mat-mdc-cell {
       @apply border-b border-gray-300;
     }
   }
-  
   .status-badge {
     @apply border border-current;
   }
 }
 
-/* Mobile specific adjustments */
 @media (max-width: 480px) {
-  .sales-table-container {
-    @apply m-2;
-    height: calc(100vh - 120px);
+  .sales-table-card {
+    @apply mx-2;
+    height: calc(100vh - 200px);
     min-height: 250px;
   }
-  
   .table-wrapper {
-    max-height: calc(100vh - 150px);
+    max-height: calc(100vh - 260px);
   }
 }
-

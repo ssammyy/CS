@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,6 +8,12 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatChipsModule } from '@angular/material/chips';
 
 import { SalesService, SaleDto, SaleStatus, PaymentMethod } from '../../../../core/services/sales.service';
+import { SaleEditRequestService } from '../../../../core/services/sale-edit-request.service';
+import { MatDialog } from '@angular/material/dialog';
+import { RequestSaleEditDialogComponent } from './request-sale-edit.dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 /**
  * Dialog component for displaying detailed sale information.
@@ -127,6 +133,14 @@ import { SalesService, SaleDto, SaleStatus, PaymentMethod } from '../../../../co
                       <span *ngIf="item.returnedQuantity > 0" class="returned-qty">Returned: {{ item.returnedQuantity }}</span>
                       <span class="unit-price">{{ formatCurrency(item.unitPrice) }} each</span>
                     </div>
+                    <div *ngIf="canRequestEdit && data.sale.status === 'COMPLETED'" class="item-edit-actions mt-2 flex gap-2">
+                      <button type="button" (click)="requestPriceChange(item)" class="text-xs px-2 py-1 rounded border border-brand-sky text-brand-sky hover:bg-brand-sky/10">
+                        Request price change
+                      </button>
+                      <button type="button" (click)="requestLineDelete(item)" class="text-xs px-2 py-1 rounded border border-brand-coral text-brand-coral hover:bg-brand-coral/10">
+                        Request remove line
+                      </button>
+                    </div>
                   </div>
                   <div class="item-total">
                     {{ formatCurrency(item.lineTotal) }}
@@ -217,7 +231,7 @@ import { SalesService, SaleDto, SaleStatus, PaymentMethod } from '../../../../co
 
     .info-card {
       margin-bottom: 1rem;
-      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(161, 199, 248, 0.25);
     }
 
     .info-grid {
@@ -407,18 +421,39 @@ import { SalesService, SaleDto, SaleStatus, PaymentMethod } from '../../../../co
     }
   `]
 })
-export class SaleDetailsDialogComponent implements OnInit {
+export class SaleDetailsDialogComponent implements OnInit, OnDestroy {
+  canRequestEdit = false;
+  private saleUpdatedSub: Subscription | null = null;
+
   constructor(
     public dialogRef: MatDialogRef<SaleDetailsDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: { sale: SaleDto },
-    private salesService: SalesService
-  ) {}
+    private salesService: SalesService,
+    private saleEditRequestService: SaleEditRequestService,
+    private dialog: MatDialog,
+    private snackBar: MatSnackBar
+  ) {
+    try {
+      const role = JSON.parse(localStorage.getItem('auth_user') || '{}')?.role;
+      this.canRequestEdit = role === 'CASHIER' || role === 'MANAGER';
+    } catch {
+      this.canRequestEdit = false;
+    }
+  }
 
   ngOnInit(): void {
     // Load full sale details if needed
     if (!this.data.sale.lineItems || this.data.sale.lineItems.length === 0) {
       this.loadSaleDetails();
     }
+    // When an admin approves a price/line edit for this sale, refresh so updated prices and totals show
+    this.saleUpdatedSub = this.saleEditRequestService.saleUpdated$
+      .pipe(filter((saleId) => saleId === this.data.sale.id))
+      .subscribe(() => this.loadSaleDetails());
+  }
+
+  ngOnDestroy(): void {
+    this.saleUpdatedSub?.unsubscribe();
   }
 
   /**
@@ -446,8 +481,71 @@ export class SaleDetailsDialogComponent implements OnInit {
    * Opens print receipt dialog
    */
   printReceipt(): void {
-    // Close this dialog and open print dialog
     this.dialogRef.close('print');
+  }
+
+  /**
+   * Opens request price change dialog and submits maker-checker request
+   */
+  requestPriceChange(item: { id: string; productName: string; unitPrice: number }): void {
+    const ref = this.dialog.open(RequestSaleEditDialogComponent, {
+      width: '400px',
+      data: {
+        saleId: this.data.sale.id,
+        lineItemId: item.id,
+        productName: item.productName,
+        requestType: 'PRICE_CHANGE' as const,
+        currentUnitPrice: item.unitPrice
+      }
+    });
+    ref.afterClosed().subscribe(result => {
+      if (!result) return;
+      this.saleEditRequestService.createRequest({
+        saleId: result.saleId,
+        saleLineItemId: result.saleLineItemId,
+        requestType: 'PRICE_CHANGE',
+        newUnitPrice: result.newUnitPrice,
+        reason: result.reason
+      }).subscribe({
+        next: () => {
+          this.snackBar.open('Request submitted. An admin will review it.', 'Close', { duration: 4000 });
+        },
+        error: (err) => {
+          this.snackBar.open(err?.error?.message || 'Failed to submit request', 'Close', { duration: 4000 });
+        }
+      });
+    });
+  }
+
+  /**
+   * Opens request line delete dialog and submits maker-checker request
+   */
+  requestLineDelete(item: { id: string; productName: string }): void {
+    const ref = this.dialog.open(RequestSaleEditDialogComponent, {
+      width: '400px',
+      data: {
+        saleId: this.data.sale.id,
+        lineItemId: item.id,
+        productName: item.productName,
+        requestType: 'LINE_DELETE' as const
+      }
+    });
+    ref.afterClosed().subscribe(result => {
+      if (!result) return;
+      this.saleEditRequestService.createRequest({
+        saleId: result.saleId,
+        saleLineItemId: result.saleLineItemId,
+        requestType: 'LINE_DELETE',
+        reason: result.reason
+      }).subscribe({
+        next: () => {
+          this.snackBar.open('Request submitted. An admin will review it.', 'Close', { duration: 4000 });
+        },
+        error: (err) => {
+          this.snackBar.open(err?.error?.message || 'Failed to submit request', 'Close', { duration: 4000 });
+        }
+      });
+    });
   }
 
   /**
@@ -475,16 +573,16 @@ export class SaleDetailsDialogComponent implements OnInit {
     switch (paymentMethod) {
       case PaymentMethod.CASH:
         return 'payments';
-      case PaymentMethod.CARD:
-        return 'credit_card';
-      case PaymentMethod.MPESA:
+      case PaymentMethod.TILL:
+      case PaymentMethod.FAMILY_BANK:
+      case PaymentMethod.WATU_SIMU:
+      case PaymentMethod.MOGO:
+      case PaymentMethod.ONFON_N1:
+      case PaymentMethod.ONFON_N2:
+      case PaymentMethod.ONFON_GLEX:
         return 'phone_android';
-      case PaymentMethod.INSURANCE:
-        return 'health_and_safety';
       case PaymentMethod.CREDIT:
         return 'account_balance';
-      case PaymentMethod.CHEQUE:
-        return 'description';
       default:
         return 'payment';
     }

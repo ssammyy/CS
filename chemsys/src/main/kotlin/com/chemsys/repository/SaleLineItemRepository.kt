@@ -1,10 +1,14 @@
 package com.chemsys.repository
 
 import com.chemsys.entity.SaleLineItem
+import com.chemsys.entity.SaleReturnStatus
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import java.math.BigDecimal
+import java.time.OffsetDateTime
 import java.util.*
 
 /**
@@ -27,6 +31,13 @@ interface SaleLineItemRepository : JpaRepository<SaleLineItem, UUID> {
      */
     @Query("SELECT li FROM SaleLineItem li WHERE li.sale.id = :saleId")
     fun findBySaleId(@Param("saleId") saleId: UUID): List<SaleLineItem>
+
+    /**
+     * Updates unit price and line total for a line item (maker-checker price change).
+     */
+    @Modifying
+    @Query("UPDATE SaleLineItem li SET li.unitPrice = :unitPrice, li.lineTotal = :lineTotal WHERE li.id = :id")
+    fun updatePriceAndTotal(@Param("id") id: UUID, @Param("unitPrice") unitPrice: BigDecimal, @Param("lineTotal") lineTotal: BigDecimal)
 
     /**
      * Finds line items by product ID across all sales for a tenant.
@@ -97,4 +108,26 @@ interface SaleLineItemRepository : JpaRepository<SaleLineItem, UUID> {
         @Param("productId") productId: UUID, 
         @Param("tenantId") tenantId: UUID
     ): Long
+
+    /**
+     * Finds line items for sales by a cashier within a date range, with inventory fetched
+     * so unit cost is available for commission calculation.
+     * Used to compute cashier commission (15% of profit per item).
+     */
+    @Query("""
+        SELECT li FROM SaleLineItem li
+        JOIN FETCH li.inventory inv
+        JOIN li.sale s
+        WHERE s.cashier.id = :cashierId
+        AND s.tenant.id = :tenantId
+        AND s.saleDate BETWEEN :startDate AND :endDate
+        AND s.returnStatus = :returnStatus
+    """)
+    fun findByCashierIdAndSaleDateBetweenWithInventory(
+        @Param("cashierId") cashierId: UUID,
+        @Param("tenantId") tenantId: UUID,
+        @Param("startDate") startDate: OffsetDateTime,
+        @Param("endDate") endDate: OffsetDateTime,
+        @Param("returnStatus") returnStatus: SaleReturnStatus
+    ): List<SaleLineItem>
 }

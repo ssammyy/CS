@@ -11,11 +11,11 @@ import java.util.*
 
 /**
  * Admin controller for platform-level operations
- * Only accessible to PLATFORM_ADMIN role
+ * Only accessible to ADMIN role
  */
 @RestController
 @RequestMapping("/admin")
-@PreAuthorize("hasRole('PLATFORM_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 class AdminController(
     private val mpesaConfigService: MpesaConfigurationService,
     private val tenantRepository: TenantRepository

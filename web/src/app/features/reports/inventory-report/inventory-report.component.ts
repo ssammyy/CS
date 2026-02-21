@@ -21,6 +21,7 @@ import {
 
 import { ReportService, InventoryReportDto, LowStockItemDto, ExpiringItemDto, OutOfStockItemDto } from '../services/report.service';
 import { BranchesService, BranchDto } from '../../../core/services/branches.service';
+import { BranchContextService } from '../../../core/services/branch-context.service';
 import { FinancialReportService } from '../../../core/services/financial-report.service';
 
 /**
@@ -56,23 +57,25 @@ import { FinancialReportService } from '../../../core/services/financial-report.
             <h1 class="text-3xl font-bold text-gray-900">Inventory Report</h1>
             <p class="text-gray-600 mt-1">Stock levels, valuation, and expiry tracking</p>
           </div>
-          <div class="flex items-center gap-3">
-            <button
-              mat-stroked-button
-              (click)="generateReport()"
-              [disabled]="loading"
-              class="!py-2">
-              <mat-icon>refresh</mat-icon>
-              Generate
-            </button>
-            <button
-              mat-stroked-button
-              (click)="downloadPDF()"
-              [disabled]="!report || loading"
-              class="!py-2 !text-brand-mint hover:!bg-brand-mint/10">
-              <mat-icon>file_download</mat-icon>
-              Download PDF
-            </button>
+          <div class="flex items-center gap-3 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide md:overflow-x-visible md:pb-0 md:mx-0 md:px-0" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <div class="flex items-center gap-3 flex-nowrap min-w-max md:flex-wrap md:min-w-0">
+              <button
+                mat-stroked-button
+                (click)="generateReport()"
+                [disabled]="loading"
+                class="!py-2 whitespace-nowrap">
+                <mat-icon>refresh</mat-icon>
+                Generate
+              </button>
+              <button
+                mat-stroked-button
+                (click)="downloadPDF()"
+                [disabled]="!report || loading"
+                class="!py-2 !text-brand-mint hover:!bg-brand-mint/10 whitespace-nowrap">
+                <mat-icon>file_download</mat-icon>
+                Download PDF
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -82,8 +85,8 @@ import { FinancialReportService } from '../../../core/services/financial-report.
         <div class="max-w-xs">
           <label class="block text-sm font-medium text-gray-700 mb-2">Branch</label>
           <select
-            [(ngModel)]="selectedBranchId"
-            (change)="onBranchChange()"
+            [ngModel]="selectedBranchId"
+            (ngModelChange)="selectedBranchId = $event; onBranchChange()"
             class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent">
             <option [value]="''">All Branches</option>
             <option *ngFor="let branch of branches" [value]="branch.id">
@@ -289,12 +292,16 @@ export class InventoryReportComponent implements OnInit {
   constructor(
     private reportService: ReportService,
     private branchesService: BranchesService,
+    private branchContext: BranchContextService,
     private pdfReportService: FinancialReportService
   ) {}
 
   ngOnInit(): void {
     this.loadBranches();
-    this.generateReport();
+    this.branchContext.currentBranch$.subscribe(branch => {
+      this.selectedBranchId = branch?.id ?? '';
+      this.generateReport();
+    });
   }
 
   loadBranches(): void {

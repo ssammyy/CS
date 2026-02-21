@@ -3,6 +3,7 @@ package com.chemsys.service
 import com.chemsys.config.TenantContext
 import com.chemsys.dto.*
 import com.chemsys.entity.SaleReturnStatus
+import com.chemsys.entity.SaleLineItem
 import com.chemsys.repository.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -23,11 +24,14 @@ class ReportService(
     private val productRepository: ProductRepository,
     private val creditAccountRepository: CreditAccountRepository,
     private val purchaseOrderRepository: PurchaseOrderRepository,
-    private val creditPaymentRepository: CreditPaymentRepository
+    private val creditPaymentRepository: CreditPaymentRepository,
+    private val expenseRepository: com.chemsys.repository.ExpenseRepository
 ) {
 
     companion object {
         private val logger = LoggerFactory.getLogger(ReportService::class.java)
+        /** Commission rate for cashiers: 15% of profit (selling price minus cost) per item sold. Aligns with DashboardService/SalesService. */
+        private val CASHIER_COMMISSION_RATE = BigDecimal("0.15")
     }
 
     /**
@@ -73,6 +77,17 @@ class ReportService(
             }
             .sortedBy { it.date }
 
+        val totalExpenses = if (branchId != null)
+            expenseRepository.sumAmountByTenantIdAndBranchIdAndStatusAndExpenseDateBetween(currentTenantId, branchId, com.chemsys.entity.ExpenseStatus.APPROVED, startDate, endDate)
+        else
+            expenseRepository.sumAmountByTenantIdAndStatusAndExpenseDateBetween(currentTenantId, com.chemsys.entity.ExpenseStatus.APPROVED, startDate, endDate)
+
+        val grossProfitAfterExpense = grossProfit - totalExpenses
+        val expenseAsPercentOfRevenue = if (totalRevenue > BigDecimal.ZERO)
+            (totalExpenses.divide(totalRevenue, 4, RoundingMode.HALF_UP).multiply(BigDecimal(100))).toDouble()
+        else
+            0.0
+
         return FinancialReportDto(
             startDate = startDate,
             endDate = endDate,
@@ -84,6 +99,9 @@ class ReportService(
             totalCreditSales = totalCreditSales,
             totalCashSales = totalRevenue - totalCreditSales,
             creditPaymentsReceived = totalPaymentsReceived,
+            totalExpenses = totalExpenses,
+            grossProfitAfterExpense = grossProfitAfterExpense,
+            expenseAsPercentOfRevenue = expenseAsPercentOfRevenue,
             revenueByPaymentMethod = revenueByPaymentMethod,
             dailyRevenue = dailyRevenue
         )
@@ -106,8 +124,8 @@ class ReportService(
 
         val totalItems = inventoryItems.size.toLong()
         val totalQuantity = inventoryItems.sumOf { it.quantity.toLong() }
-        val totalStockValue = inventoryItems.sumOf { (it.quantity.toBigDecimal() * (it.sellingPrice ?: BigDecimal.ZERO)) }
-        val totalCostValue = inventoryItems.sumOf { (it.quantity.toBigDecimal() * (it.unitCost ?: BigDecimal.ZERO)) }
+        val totalStockValue = inventoryItems.sumOf { (it.quantity.toBigDecimal() * (it.product.sellingPrice ?: it.sellingPrice ?: BigDecimal.ZERO)) }
+        val totalCostValue = inventoryItems.sumOf { (it.quantity.toBigDecimal() * (it.product.unitCost ?: it.unitCost ?: BigDecimal.ZERO)) }
 
         val now = LocalDate.now()
         val lowStockItems = inventoryItems
@@ -118,7 +136,7 @@ class ReportService(
                     productName = inv.product.name,
                     currentStock = inv.quantity.toLong(),
                     minStockLevel = inv.product.minStockLevel.toLong(),
-                    stockValue = inv.quantity.toBigDecimal() * (inv.sellingPrice ?: BigDecimal.ZERO)
+                    stockValue = inv.quantity.toBigDecimal() * (inv.product.sellingPrice ?: inv.sellingPrice ?: BigDecimal.ZERO)
                 )
             }
 
@@ -135,7 +153,7 @@ class ReportService(
                     quantity = inv.quantity.toLong(),
                     expiryDate = inv.expiryDate!!,
                     daysUntilExpiry = (inv.expiryDate!!.toEpochDay() - now.toEpochDay()).toInt(),
-                    stockValue = inv.quantity.toBigDecimal() * (inv.sellingPrice ?: BigDecimal.ZERO)
+                    stockValue = inv.quantity.toBigDecimal() * (inv.product.sellingPrice ?: inv.sellingPrice ?: BigDecimal.ZERO)
                 )
             }
             .sortedBy { it.expiryDate }
@@ -202,7 +220,7 @@ class ReportService(
         currentInventory.forEach { inv ->
             val expectedUsage = expectedUsageByProduct[inv.product.id] ?: 0L
             val varianceQuantity = inv.quantity.toLong() - expectedUsage
-            val varianceValue = varianceQuantity.toBigDecimal() * (inv.sellingPrice ?: BigDecimal.ZERO)
+            val varianceValue = varianceQuantity.toBigDecimal() * (inv.product.sellingPrice ?: inv.sellingPrice ?: BigDecimal.ZERO)
 
             totalInventoryVariance += varianceValue
 
@@ -408,10 +426,83 @@ class ReportService(
         )
     }
 
+    /**
+     * Calculates Cost of Goods Sold (COGS) for sales.
+     * COGS = sum of (quantity sold × unit cost) per line item.
+     * Uses inventory.unitCost - the actual cost at time of sale.
+     */
     private fun calculateTotalCost(sales: List<com.chemsys.entity.Sale>): BigDecimal {
         return sales.flatMap { it.lineItems }
             .sumOf { item ->
-                (item.quantity.toBigDecimal() * (item.product.minStockLevel.toBigDecimal())) // Simplified cost calculation
+                item.quantity.toBigDecimal() * (item.inventory.product.unitCost ?: item.inventory.unitCost ?: BigDecimal.ZERO)
             }
+    }
+
+    /**
+     * Get user performance report: revenue, sales count, and commission per cashier/manager
+     * for the given date range. Optional branch filter. Commission is 15% of profit per line item.
+     * Supports daily/weekly/monthly/yearly views by varying start/end on the client.
+     */
+    @Transactional(readOnly = true)
+    fun getUserPerformanceReport(
+        startDate: LocalDate,
+        endDate: LocalDate,
+        branchId: UUID? = null
+    ): UserPerformanceReportDto {
+        val currentTenantId = TenantContext.getCurrentTenant()
+            ?: throw RuntimeException("No tenant context found")
+
+        val startDateTime = startDate.atStartOfDay().atOffset(OffsetDateTime.now().offset)
+        val endDateTime = endDate.plusDays(1).atStartOfDay().atOffset(OffsetDateTime.now().offset)
+
+        val sales = if (branchId != null)
+            saleRepository.findSalesForPeriodWithLineItemsAndCashierForBranch(
+                startDateTime, endDateTime, currentTenantId, SaleReturnStatus.NONE, branchId
+            )
+        else
+            saleRepository.findSalesForPeriodWithLineItemsAndCashierAllBranches(
+                startDateTime, endDateTime, currentTenantId, SaleReturnStatus.NONE
+            )
+
+        val byCashier = sales.groupBy { it.cashier.id!! }
+
+        val userPerformances = byCashier.map { (_, salesForUser) ->
+            val cashier = salesForUser.first().cashier
+            val totalRevenue = salesForUser.sumOf { it.totalAmount }
+            val totalCost = calculateTotalCost(salesForUser)
+            val totalProfit = (totalRevenue - totalCost).max(BigDecimal.ZERO)
+            val salesCount = salesForUser.size.toLong()
+            val commission = computeCommissionForSales(salesForUser.flatMap { it.lineItems })
+
+            UserPerformanceDto(
+                userId = cashier.id!!,
+                userName = cashier.username,
+                email = cashier.email,
+                role = cashier.role.name,
+                totalRevenue = totalRevenue,
+                totalProfit = totalProfit,
+                salesCount = salesCount,
+                commission = commission
+            )
+        }.sortedByDescending { it.totalProfit }
+
+        return UserPerformanceReportDto(
+            startDate = startDate,
+            endDate = endDate,
+            userPerformances = userPerformances
+        )
+    }
+
+    /**
+     * Computes total commission for a list of line items: 15% of profit per item.
+     * Profit per line = max(0, unitPrice - cost) * (quantity - returnedQuantity).
+     */
+    private fun computeCommissionForSales(lineItems: List<SaleLineItem>): BigDecimal {
+        return lineItems.sumOf { li ->
+            val costPerUnit = li.inventory.product.unitCost ?: li.inventory.unitCost ?: BigDecimal.ZERO
+            val profitPerUnit = (li.unitPrice - costPerUnit).max(BigDecimal.ZERO)
+            val quantitySold = BigDecimal(li.quantity - li.returnedQuantity).max(BigDecimal.ZERO)
+            profitPerUnit.multiply(quantitySold).multiply(CASHIER_COMMISSION_RATE)
+        }.setScale(2, RoundingMode.HALF_UP)
     }
 }

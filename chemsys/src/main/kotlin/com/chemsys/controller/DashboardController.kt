@@ -38,6 +38,20 @@ class DashboardController(
             ResponseEntity.internalServerError().build()
         }
     }
+
+    /**
+     * Get onboarding status for guided setup flow
+     */
+    @GetMapping("/onboarding")
+    fun getOnboardingStatus(): ResponseEntity<com.chemsys.dto.OnboardingStatusDto> {
+        return try {
+            val status = dashboardService.getOnboardingStatus()
+            ResponseEntity.ok(status)
+        } catch (e: Exception) {
+            logger.error("Error fetching onboarding status: ${e.message}", e)
+            ResponseEntity.internalServerError().build()
+        }
+    }
 }
 
 

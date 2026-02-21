@@ -333,6 +333,8 @@ export interface SaleDto {
   isCreditSale: boolean;
   lineItems: SaleLineItemDto[];
   payments: SalePaymentDto[];
+  /** Cashier commission (15% of profit) for this sale; set when listing sales for the cashier's own view. */
+  commission?: number | null;
 }
 
 export interface SaleLineItemDto {
@@ -413,7 +415,8 @@ export interface CustomerDto {
 
 export interface CreateCustomerRequest {
   firstName: string;
-  lastName: string;
+  /** Optional; omit or send empty string when not provided. */
+  lastName?: string;
   phone?: string;
 }
 
@@ -509,6 +512,8 @@ export interface SalesListResponse {
   pageSize: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  /** Sum of totalAmount for all sales matching the current filter (across all pages) */
+  totalFilteredAmount?: number;
 }
 
 export interface CustomersListResponse {
@@ -595,11 +600,31 @@ export enum SaleStatus {
 
 export enum PaymentMethod {
   CASH = 'CASH',
-  MPESA = 'MPESA',
-  CARD = 'CARD',
-  INSURANCE = 'INSURANCE',
-  CREDIT = 'CREDIT',
-  CHEQUE = 'CHEQUE'
+  TILL = 'TILL',
+  FAMILY_BANK = 'FAMILY_BANK',
+  WATU_SIMU = 'WATU_SIMU',
+  MOGO = 'MOGO',
+  ONFON_N1 = 'ONFON_N1',
+  ONFON_N2 = 'ONFON_N2',
+  ONFON_GLEX = 'ONFON_GLEX',
+  CREDIT = 'CREDIT'
+}
+
+/** Returns display name for payment method in filters and dropdowns */
+export function getPaymentMethodDisplayName(method: PaymentMethod | string): string {
+  const m = String(method);
+  switch (m) {
+    case 'CASH': return 'Cash';
+    case 'TILL': return 'Till';
+    case 'FAMILY_BANK': return 'Family Bank';
+    case 'WATU_SIMU': return 'Watu simu';
+    case 'MOGO': return 'Mogo';
+    case 'ONFON_N1': return 'Onfon N1';
+    case 'ONFON_N2': return 'Onfon N2';
+    case 'ONFON_GLEX': return 'Onfon Glex';
+    case 'CREDIT': return 'Credit';
+    default: return m;
+  }
 }
 
 export enum ReturnStatus {

@@ -13,31 +13,33 @@ import { UserBranchPreferenceService } from '../../core/services/user-branch-pre
   standalone: true,
   imports: [CommonModule, MatIconModule, MatButtonModule, MatMenuModule],
   template: `
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5 sm:gap-2">
       <!-- Current Branch Display with Dropdown -->
       <div 
         *ngIf="currentBranch" 
-        class="flex items-center gap-2 px-3 py-2 bg-brand-sky/10 rounded-lg border border-brand-sky/20 cursor-pointer hover:bg-brand-sky/20 transition-colors"
+        class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-brand-sky/10 rounded-lg border border-brand-sky/20 cursor-pointer hover:bg-brand-sky/20 transition-colors flex-shrink-0"
         [matMenuTriggerFor]="branchMenu">
-        <div class="w-2 h-2 rounded-full bg-brand-sky"></div>
-        <div class="text-sm">
-          <div class="font-medium text-gray-900">{{ currentBranch.name }}</div>
-          <div class="text-xs text-gray-600">{{ currentBranch.location }}</div>
+        <mat-icon class="text-brand-sky text-sm sm:text-base">store</mat-icon>
+        <div class="text-xs sm:text-sm min-w-0 hidden sm:block">
+          <div class="font-medium text-gray-900 truncate">{{ currentBranch.name }}</div>
+          <div class="text-xs text-gray-600 truncate hidden md:block">{{ currentBranch.location }}</div>
         </div>
-        <mat-icon class="text-gray-500 text-sm">expand_more</mat-icon>
+        <div class="text-xs font-medium text-gray-900 truncate sm:hidden max-w-[80px]">{{ currentBranch.name }}</div>
+        <mat-icon class="text-gray-500 text-xs sm:text-sm flex-shrink-0">expand_more</mat-icon>
       </div>
       
       <!-- No Branch Selected with Dropdown -->
       <div 
         *ngIf="!currentBranch" 
-        class="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors"
+        class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-100 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-200 transition-colors flex-shrink-0"
         [matMenuTriggerFor]="branchMenu">
-        <div class="w-2 h-2 rounded-full bg-gray-400"></div>
-        <div class="text-sm text-gray-500">
-          <div>{{ getNoBranchMessage() }}</div>
-          <div class="text-xs text-gray-400">Click to select</div>
+        <mat-icon class="text-gray-400 text-sm sm:text-base">store</mat-icon>
+        <div class="text-xs sm:text-sm text-gray-500 min-w-0">
+          <div class="font-medium truncate hidden sm:block">{{ getNoBranchMessage() }}</div>
+          <div class="font-medium truncate sm:hidden">All</div>
+          <div class="text-xs text-gray-400 hidden md:block">Click to select</div>
         </div>
-        <mat-icon class="text-gray-500 text-sm">expand_more</mat-icon>
+        <mat-icon class="text-gray-500 text-xs sm:text-sm flex-shrink-0">expand_more</mat-icon>
       </div>
     </div>
 

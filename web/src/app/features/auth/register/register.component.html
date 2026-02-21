@@ -1,1 +1,179 @@
-<p>register works!</p>
+<div class="min-h-screen bg-gray-50 flex items-stretch">
+  <!-- Left: form panel -->
+  <div class="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-8 lg:p-12">
+    <div class="relative w-full max-w-md sm:max-w-md md:max-w-lg">
+      <div class="mb-8">
+        <!-- Wordmark Logo: s a a m -->
+        <div class="flex items-center gap-1 mb-4">
+          <span class="text-3xl font-bold text-brand-coral">s</span>
+          <span class="text-3xl font-bold text-brand-sky">a</span>
+          <span class="text-3xl font-bold text-brand-mint">a</span>
+          <span class="text-3xl font-bold text-brand-coral">m</span>
+          <span class="text-3xl font-bold text-gray-900">POS</span>
+        </div>
+        <div class="h-1.5 w-16 rounded-full bg-gradient-to-r from-brand-coral to-brand-sky mb-4"></div>
+        <h2 class="text-2xl sm:text-3xl font-semibold">Create your account</h2>
+        <p class="text-gray-600 mt-1 text-sm">Sign up to create your tenant and admin account.</p>
+      </div>
+
+      <form [formGroup]="signupForm" (ngSubmit)="onSignup()" class="mt-2 space-y-4 sm:space-y-5">
+        <mat-form-field class="w-full" color="primary">
+          <mat-label>Tenant name</mat-label>
+          <mat-icon matPrefix class="mr-2 opacity-60">apartment</mat-icon>
+          <input matInput formControlName="tenantName" required />
+          <mat-error *ngIf="signupForm.controls.tenantName.invalid && signupForm.controls.tenantName.touched">
+            Tenant name is required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field class="w-full" color="primary">
+          <mat-label>Admin username</mat-label>
+          <mat-icon matPrefix class="mr-2 opacity-60">person</mat-icon>
+          <input matInput formControlName="adminUsername" required />
+          <mat-error *ngIf="signupForm.controls.adminUsername.invalid && signupForm.controls.adminUsername.touched">
+            Admin username is required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field class="w-full" color="primary">
+          <mat-label>Admin email</mat-label>
+          <mat-icon matPrefix class="mr-2 opacity-60">mail</mat-icon>
+          <input matInput type="email" formControlName="adminEmail" required />
+          <mat-error *ngIf="signupForm.controls.adminEmail.invalid && signupForm.controls.adminEmail.touched">
+            Valid email is required
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field class="w-full" color="primary">
+          <mat-label>Admin password</mat-label>
+          <mat-icon matPrefix class="mr-2 opacity-60">lock</mat-icon>
+          <input matInput [type]="hideSignupPassword ? 'password' : 'text'" formControlName="adminPassword" required />
+          <button mat-icon-button matSuffix type="button" (click)="hideSignupPassword = !hideSignupPassword" [attr.aria-label]="hideSignupPassword ? 'Show password' : 'Hide password'">
+            <mat-icon>{{ hideSignupPassword ? 'visibility' : 'visibility_off' }}</mat-icon>
+          </button>
+          <mat-error *ngIf="signupForm.controls.adminPassword.invalid && signupForm.controls.adminPassword.touched">
+            Password must be at least 6 characters
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Error Message Display -->
+        <div *ngIf="errorMessage()" class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <mat-icon class="text-red-600 flex-shrink-0">error</mat-icon>
+          <div class="flex-1">
+            <p class="text-sm font-medium text-red-800">Account creation failed</p>
+            <p class="text-sm text-red-700 mt-1">{{ errorMessage() }}</p>
+          </div>
+          <button type="button" (click)="errorMessage.set(null)" class="text-red-600 hover:text-red-800 flex-shrink-0" aria-label="Dismiss error">
+            <mat-icon class="text-base">close</mat-icon>
+          </button>
+        </div>
+
+        <button mat-raised-button class="w-full !py-3 !text-base text-white bg-gradient-to-r from-brand-coral to-brand-sky hover:opacity-95 transition disabled:opacity-50 disabled:cursor-not-allowed" type="submit" [disabled]="signupForm.invalid || loading()">
+          <span *ngIf="!loading()">Create account</span>
+          <span *ngIf="loading()" class="flex items-center justify-center gap-2">
+            <mat-spinner diameter="20"></mat-spinner>
+            <span>Creating account...</span>
+          </span>
+        </button>
+      </form>
+
+      <div class="mt-6 text-sm text-gray-600">
+        Already have an account?
+        <a routerLink="/login" class="text-brand-coral hover:underline ml-1">Sign in</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: modern hero section -->
+  <div class="hidden xl:flex w-1/2 p-6 lg:p-10 xl:p-14">
+    <div class="flex-1 rounded-[2rem] bg-[#A1C7F8] relative overflow-hidden">
+      <!-- Background pattern -->
+      <div class="absolute inset-0 opacity-20">
+        <div class="absolute top-10 left-10 w-32 h-32 rounded-full bg-[#CBEBD0] blur-xl"></div>
+        <div class="absolute top-1/3 right-16 w-24 h-24 rounded-full bg-[#F99E98] blur-lg"></div>
+        <div class="absolute bottom-20 left-1/4 w-40 h-40 rounded-full bg-[#CBEBD0] blur-2xl"></div>
+      </div>
+      
+      <!-- Content -->
+      <div class="relative z-10 p-8 lg:p-12 h-full flex flex-col justify-between text-gray-900">
+        <!-- Header -->
+        <div>
+          <div class="inline-flex items-center gap-3 mb-8">
+            <!-- Wordmark Logo: s a a m -->
+            <div class="flex items-center gap-1">
+              <span class="text-2xl font-bold text-brand-coral">s</span>
+              <span class="text-2xl font-bold text-brand-sky">a</span>
+              <span class="text-2xl font-bold text-brand-mint">a</span>
+              <span class="text-2xl font-bold text-brand-coral">m</span>
+            </div>
+            <span class="text-lg font-semibold text-gray-800">POS</span>
+          </div>
+          
+          <div class="max-w-md">
+            <h3 class="text-3xl lg:text-4xl font-bold leading-tight mb-4 text-gray-900">
+              Get Started Today
+            </h3>
+            <p class="text-gray-700 text-lg leading-relaxed">
+              Create your account and start managing your business with our comprehensive Saam POS system.
+            </p>
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div class="space-y-6">
+          <div class="flex items-start gap-4">
+            <div class="h-12 w-12 rounded-xl bg-[#CBEBD0] flex items-center justify-center flex-shrink-0 border border-gray-200/80">
+              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div>
+              <h4 class="font-semibold text-lg mb-1 text-gray-900">Easy Setup</h4>
+              <p class="text-gray-600">Get started in minutes with our simple onboarding process</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-4">
+            <div class="h-12 w-12 rounded-xl bg-[#F99E98] flex items-center justify-center flex-shrink-0 border border-gray-200/80">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+            </div>
+            <div>
+              <h4 class="font-semibold text-lg mb-1 text-gray-900">Secure & Reliable</h4>
+              <p class="text-gray-600">Your data is protected with enterprise-grade security</p>
+            </div>
+          </div>
+          
+          <div class="flex items-start gap-4">
+            <div class="h-12 w-12 rounded-xl bg-[#CBEBD0] flex items-center justify-center flex-shrink-0 border border-gray-200/80">
+              <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+            <div>
+              <h4 class="font-semibold text-lg mb-1 text-gray-900">Powerful Features</h4>
+              <p class="text-gray-600">Everything you need to run your business efficiently</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom testimonial -->
+        <div class="bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-white/40 border border-gray-200/80">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="h-10 w-10 rounded-full bg-[#F99E98] flex items-center justify-center">
+              <span class="text-sm font-semibold text-white">KP</span>
+            </div>
+            <div>
+              <div class="font-medium text-gray-900">Kimani Pharmacy</div>
+              <div class="text-gray-600 text-sm">Nairobi, Kenya</div>
+            </div>
+          </div>
+          <p class="text-gray-800 italic">
+            "SaamPOS has transformed how we manage our business. The inventory tracking and Saam POS system are exactly what we needed."
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

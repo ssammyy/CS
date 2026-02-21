@@ -8,6 +8,7 @@ import { FinancialReportComponent } from '../financial-report/financial-report.c
 import { InventoryReportComponent } from '../inventory-report/inventory-report.component';
 import { VarianceReportComponent } from '../variance-report/variance-report.component';
 import { VatReportComponent } from '../vat-report/vat-report.component';
+import { UserPerformanceReportComponent } from '../user-performance-report/user-performance-report.component';
 
 /**
  * Reports layout component that acts as a container for all report types
@@ -23,7 +24,8 @@ import { VatReportComponent } from '../vat-report/vat-report.component';
     FinancialReportComponent,
     InventoryReportComponent,
     VarianceReportComponent,
-    VatReportComponent
+    VatReportComponent,
+    UserPerformanceReportComponent
   ],
   template: `
     <div class="min-h-screen bg-gray-50">
@@ -35,6 +37,13 @@ import { VatReportComponent } from '../vat-report/vat-report.component';
             <span>Financial Report</span>
           </ng-template>
           <app-financial-report></app-financial-report>
+        </mat-tab>
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon class="mr-2">people</mat-icon>
+            <span>Agent Performance</span>
+          </ng-template>
+          <app-user-performance-report></app-user-performance-report>
         </mat-tab>
 
         <mat-tab>
@@ -60,6 +69,8 @@ import { VatReportComponent } from '../vat-report/vat-report.component';
           </ng-template>
           <app-vat-report></app-vat-report>
         </mat-tab>
+
+
       </mat-tab-group>
     </div>
   `,

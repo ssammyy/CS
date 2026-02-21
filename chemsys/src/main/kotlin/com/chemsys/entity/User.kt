@@ -28,6 +28,9 @@ data class User(
     @Column(name = "email", nullable = false, unique = true)
     val email: String,
     
+    @Column(name = "phone", nullable = true)
+    val phone: String? = null,
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)
     val tenant: Tenant,
@@ -46,6 +49,9 @@ data class User(
     
     @Column(name = "is_active", nullable = false)
     val isActive: Boolean = true,
+
+    @Column(name = "must_change_password", nullable = false, columnDefinition = "boolean not null default false")
+    var mustChangePassword: Boolean = false,
     
     @Column(name = "created_at", nullable = false)
     val createdAt: OffsetDateTime = OffsetDateTime.now(),

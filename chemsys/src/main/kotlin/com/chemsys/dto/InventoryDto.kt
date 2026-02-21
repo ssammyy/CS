@@ -131,3 +131,34 @@ enum class AlertSeverity {
     HIGH,
     CRITICAL
 }
+
+/**
+ * DTO for inventory transfer history/logs.
+ * Used by admins to view all transfers performed by cashiers and other users.
+ */
+data class InventoryTransferHistoryDto(
+    val id: UUID,
+    val productId: UUID,
+    val productName: String,
+    val fromBranchId: UUID,
+    val fromBranchName: String,
+    val toBranchId: UUID,
+    val toBranchName: String,
+    val quantity: Int,
+    val batchNumber: String?,
+    val expiryDate: LocalDate?,
+    val unitCost: BigDecimal?,
+    val notes: String?,
+    val performedBy: UUID?,
+    val performedByUsername: String?,
+    val performedByEmail: String?,
+    val createdAt: OffsetDateTime
+)
+
+/**
+ * Response DTO for transfer history list.
+ */
+data class InventoryTransferHistoryResponse(
+    val transfers: List<InventoryTransferHistoryDto>,
+    val totalCount: Long
+)

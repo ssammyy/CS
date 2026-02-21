@@ -11,18 +11,18 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatButtonModule } from '@angular/material/button';
 import { NgxChartsModule } from '@swimlane/ngx-charts';
 
-import {
-  PrimaryButtonComponent,
-  SecondaryButtonComponent,
-  AccentButtonComponent,
-  DangerButtonComponent,
-  IconButtonComponent,
-  TextButtonComponent
-} from '../../../shared/components';
+
 
 import { ReportService, FinancialReportDto, PaymentMethodRevenueDto } from '../services/report.service';
 import { BranchesService, BranchDto } from '../../../core/services/branches.service';
+import { BranchContextService } from '../../../core/services/branch-context.service';
 import { FinancialReportService } from '../../../core/services/financial-report.service';
+
+import { MatButtonToggle, MatButtonToggleGroup, MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { RouterLink } from '@angular/router';
+
 
 /**
  * Financial Report component showing sales revenue, costs, and profit metrics
@@ -42,12 +42,13 @@ import { FinancialReportService } from '../../../core/services/financial-report.
     MatChipsModule,
     MatButtonModule,
     NgxChartsModule,
-    PrimaryButtonComponent,
-    SecondaryButtonComponent,
-    AccentButtonComponent,
-    DangerButtonComponent,
-    IconButtonComponent,
-    TextButtonComponent
+    MatButtonToggle,
+    MatButtonToggleGroup,
+    MatButtonToggleGroup,
+    MatButtonToggle,
+    MatDatepickerModule,
+    MatNativeDateModule,
+    RouterLink
   ],
   template: `
     <div class="min-h-screen bg-gray-50 p-6">
@@ -58,23 +59,25 @@ import { FinancialReportService } from '../../../core/services/financial-report.
             <h1 class="text-3xl font-bold text-gray-900">Financial Report</h1>
             <p class="text-gray-600 mt-1">Revenue, costs, and profit analysis</p>
           </div>
-          <div class="flex items-center gap-3">
-            <button
-              mat-stroked-button
-              (click)="generateReport()"
-              [disabled]="loading"
-              class="!py-2">
-              <mat-icon>refresh</mat-icon>
-              Generate
-            </button>
-            <button
-              mat-stroked-button
-              (click)="downloadPDF()"
-              [disabled]="!report || loading"
-              class="!py-2 !text-brand-sky hover:!bg-brand-sky/10">
-              <mat-icon>file_download</mat-icon>
-              Download PDF
-            </button>
+          <div class="flex items-center gap-3 overflow-x-auto pb-2 -mx-2 px-2 scrollbar-hide md:overflow-x-visible md:pb-0 md:mx-0 md:px-0" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <div class="flex items-center gap-3 flex-nowrap min-w-max md:flex-wrap md:min-w-0">
+              <button
+                mat-stroked-button
+                (click)="generateReport()"
+                [disabled]="loading"
+                class="!py-2 whitespace-nowrap">
+                <mat-icon>refresh</mat-icon>
+                Generate
+              </button>
+              <button
+                mat-stroked-button
+                (click)="downloadPDF()"
+                [disabled]="!report || loading"
+                class="!py-2 !text-brand-sky hover:!bg-brand-sky/10 whitespace-nowrap">
+                <mat-icon>file_download</mat-icon>
+                Download PDF
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -82,34 +85,39 @@ import { FinancialReportService } from '../../../core/services/financial-report.
       <!-- Filters -->
       <div class="bg-white rounded-lg shadow p-6 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <mat-form-field  >
+            <mat-label>Start Date</mat-label>
+            <input matInput [matDatepicker]="startDatePicker" [(ngModel)]="startDate" (dateChange)="generateReport()">
+            <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #startDatePicker></mat-datepicker>
+          </mat-form-field>
+          <mat-form-field  >
+            <mat-label>End Date</mat-label>
+            <input matInput [matDatepicker]="endDatePicker" [(ngModel)]="endDate" (dateChange)="generateReport()">
+            <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #endDatePicker></mat-datepicker>
+          </mat-form-field>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-            <input
-              type="date"
-              [(ngModel)]="startDate"
-              (change)="generateReport()"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent">
+
+      <mat-form-field class="w-full">
+        <mat-select [(ngModel)]="selectedBranchId" (selectionChange)="onBranchChange()">
+          <mat-option [value]="''">All Branches</mat-option>
+          <mat-option *ngFor="let branch of branches" [value]="branch.id">
+            {{ branch.name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-            <input
-              type="date"
-              [(ngModel)]="endDate"
-              (change)="generateReport()"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-            <select
-              [(ngModel)]="selectedBranchId"
-              (change)="onBranchChange()"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-sky focus:border-transparent">
-              <option [value]="''">All Branches</option>
-              <option *ngFor="let branch of branches" [value]="branch.id">
-                {{ branch.name }}
-              </option>
-            </select>
-          </div>
+        </div>
+        <!-- Quick view: same as User Performance report -->
+        <div class="flex flex-wrap gap-2 mt-4">
+
+          <mat-button-toggle-group name="periodGroup" aria-label="Quick period" class="bg-gray-100 rounded-lg p-1 inline-flex shadow-sm">
+            <mat-button-toggle value="today" (click)="setPeriod('today')" class="!px-1 !py-1 text-sm text-gray-700 hover:bg-white" aria-label="Today">Today</mat-button-toggle>
+            <mat-button-toggle value="week" (click)="setPeriod('week')" class="!px-1 !py-1 text-sm text-gray-700 hover:bg-white">This Week</mat-button-toggle>
+            <mat-button-toggle value="month" (click)="setPeriod('month')" class="!px-1 !py-1 text-sm text-gray-700 hover:bg-white">This Month</mat-button-toggle>
+            <mat-button-toggle value="year" (click)="setPeriod('year')" class="!px-1 !py-1 text-sm text-gray-700 hover:bg-white">This Year</mat-button-toggle>
+          </mat-button-toggle-group>
         </div>
       </div>
 
@@ -169,7 +177,7 @@ import { FinancialReportService } from '../../../core/services/financial-report.
           </div>
 
           <!-- Sales Count -->
-          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-orange-500">
+          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-brand-sky">
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm font-medium text-gray-600">Total Sales</p>
@@ -182,46 +190,52 @@ import { FinancialReportService } from '../../../core/services/financial-report.
           </div>
         </div>
 
-        <!-- Credit Sales Section -->
+        <!-- Expense stats: total expenses, gross profit after expense, expense % of revenue -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+          <div
+            (click)="navigateToExpenses()"
+            (keydown.enter)="navigateToExpenses()"
+            role="button"
+            tabindex="0"
+            matTooltip="Click to view expenses"
+            matTooltipPosition="above"
+            class="bg-white rounded-lg cursor-pointer shadow p-4 border-l-4 border-brand-coral">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-sm font-medium text-gray-600">Credit Sales</p>
+                <p class="text-sm font-medium text-gray-600">Total Expenses</p>
                 <p class="text-2xl font-bold text-gray-900">
-                  {{ report.totalCreditSales | currency: 'KES' }}
+                  {{ report.totalExpenses | currency: 'KES' }}
                 </p>
               </div>
-              <div class="p-2 bg-purple-500/20 rounded-lg">
-                <mat-icon class="text-purple-500">credit_card</mat-icon>
+              <div class="p-2 bg-brand-coral/20 rounded-lg">
+                <mat-icon class="text-brand-coral">receipt</mat-icon>
               </div>
             </div>
           </div>
 
-          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-brand-mint">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-sm font-medium text-gray-600">Cash Sales</p>
+                <p class="text-sm font-medium text-gray-600">Gross Profit After Expense</p>
                 <p class="text-2xl font-bold text-gray-900">
-                  {{ report.totalCashSales | currency: 'KES' }}
+                  {{ report.grossProfitAfterExpense | currency: 'KES' }}
                 </p>
               </div>
-              <div class="p-2 bg-green-500/20 rounded-lg">
-                <mat-icon class="text-green-500">payments</mat-icon>
+              <div class="p-2 bg-brand-mint/20 rounded-lg">
+                <mat-icon class="text-brand-mint">show_chart</mat-icon>
               </div>
             </div>
+            <p class="text-xs text-gray-500 mt-2">Profit after deducting expenses</p>
           </div>
 
-          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+          <div class="bg-white rounded-lg shadow p-4 border-l-4 border-brand-sky">
             <div class="flex items-center justify-between">
               <div>
-                <p class="text-sm font-medium text-gray-600">Credit Payments</p>
-                <p class="text-2xl font-bold text-gray-900">
-                  {{ report.creditPaymentsReceived | currency: 'KES' }}
-                </p>
+                <p class="text-sm font-medium text-gray-600">Expense % of Revenue</p>
+                <p class="text-2xl font-bold text-gray-900">{{ report.expenseAsPercentOfRevenue?.toFixed(2) ?? 0 }}%</p>
               </div>
-              <div class="p-2 bg-blue-500/20 rounded-lg">
-                <mat-icon class="text-blue-500">check_circle</mat-icon>
+              <div class="p-2 bg-orange-500/20 rounded-lg">
+                <mat-icon class="text-orange-500">percent</mat-icon>
               </div>
             </div>
           </div>
@@ -299,8 +313,8 @@ import { FinancialReportService } from '../../../core/services/financial-report.
   styleUrl: './financial-report.component.scss'
 })
 export class FinancialReportComponent implements OnInit {
-  startDate = '';
-  endDate = '';
+  startDate: Date | null = null;
+  endDate: Date | null = null;
   selectedBranchId: string = '';
 
   report: FinancialReportDto | null = null;
@@ -321,18 +335,22 @@ export class FinancialReportComponent implements OnInit {
   constructor(
     private reportService: ReportService,
     private branchesService: BranchesService,
+    private branchContext: BranchContextService,
     private pdfReportService: FinancialReportService
   ) {
     const today = new Date();
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    this.endDate = this.formatDate(today);
-    this.startDate = this.formatDate(thirtyDaysAgo);
+    this.endDate = today;
+    this.startDate = thirtyDaysAgo;
   }
 
   ngOnInit(): void {
     this.loadBranches();
-    this.generateReport();
+    // Initialize branch from context (user's current branch) and refresh when branch changes
+    this.branchContext.currentBranch$.subscribe(branch => {
+      this.selectedBranchId = branch?.id ?? '';
+      this.generateReport();
+    });
   }
 
   loadBranches(): void {
@@ -351,12 +369,11 @@ export class FinancialReportComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    // Only pass branchId if it's not empty (empty string means "All Branches")
     const branchId = this.selectedBranchId ? this.selectedBranchId : undefined;
 
     this.reportService.getFinancialReport(
-      this.startDate,
-      this.endDate,
+      this.formatDateForApi(this.startDate),
+      this.formatDateForApi(this.endDate),
       branchId
     ).subscribe({
       next: (data) => {
@@ -376,8 +393,46 @@ export class FinancialReportComponent implements OnInit {
    * Handle branch selection change and auto-refresh report
    */
   onBranchChange(): void {
-    console.log('Branch changed to:', this.selectedBranchId);
     this.generateReport();
+  }
+
+  /**
+   * Set date range from quick view (Today, This Week, This Month, This Year) and generate report.
+   */
+  setPeriod(period: 'today' | 'week' | 'month' | 'year'): void {
+    const now = new Date();
+    let start: Date;
+    switch (period) {
+      case 'today':
+        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        break;
+      case 'week': {
+        const d = new Date(now);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        start = new Date(d.setDate(diff));
+        start.setHours(0, 0, 0, 0);
+        break;
+      }
+      case 'month':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        break;
+      case 'year':
+        start = new Date(now.getFullYear(), 0, 1);
+        break;
+      default:
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+    this.startDate = start;
+    this.endDate = new Date(now);
+    this.generateReport();
+  }
+
+  private formatDateForApi(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   private prepareChartData(): void {
@@ -409,7 +464,7 @@ export class FinancialReportComponent implements OnInit {
    * Download current report as PDF
    */
   downloadPDF(): void {
-    if (!this.report) return;
+    if (!this.report || !this.startDate || !this.endDate) return;
 
     const branchName = this.selectedBranchId
       ? this.branches.find(b => b.id === this.selectedBranchId)?.name || 'All Branches'
@@ -417,8 +472,8 @@ export class FinancialReportComponent implements OnInit {
 
     this.pdfReportService.generateFinancialReportPdf(
       {
-        startDate: this.startDate,
-        endDate: this.endDate,
+        startDate: this.formatDateForApi(this.startDate),
+        endDate: this.formatDateForApi(this.endDate),
         totalRevenue: this.report.totalRevenue,
         totalCost: this.report.totalCost,
         grossProfit: this.report.grossProfit,
@@ -427,6 +482,9 @@ export class FinancialReportComponent implements OnInit {
         totalCreditSales: this.report.totalCreditSales,
         totalCashSales: this.report.totalCashSales,
         creditPaymentsReceived: this.report.creditPaymentsReceived,
+        totalExpenses: this.report.totalExpenses,
+        grossProfitAfterExpense: this.report.grossProfitAfterExpense,
+        expenseAsPercentOfRevenue: this.report.expenseAsPercentOfRevenue,
         revenueByPaymentMethod: this.report.revenueByPaymentMethod,
         dailyRevenue: this.report.dailyRevenue
       },
@@ -439,5 +497,10 @@ export class FinancialReportComponent implements OnInit {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  navigateToExpenses() {
+      // Navigate to the expenses page (assuming you have a route set up for it)
+      window.location.href = '/expenses';
   }
 }

@@ -4,23 +4,37 @@ import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatCardModule } from '@angular/material/card';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
 import { Router } from '@angular/router';
 
-import { SalesService, CreateSaleRequest, CreateSaleLineItemRequest, CreateSalePaymentRequest, BarcodeScanRequest, BarcodeScanResponse, PaymentMethod, CustomerDto } from '../../../core/services/sales.service';
+import { SalesService, CreateSaleRequest, CreateSaleLineItemRequest, CreateSalePaymentRequest, BarcodeScanRequest, BarcodeScanResponse, PaymentMethod, CustomerDto, getPaymentMethodDisplayName } from '../../../core/services/sales.service';
 import { ProductsService, ProductDto } from '../../../core/services/products.service';
 import { InventoryService, InventoryDto } from '../../../core/services/inventory.service';
 import { BranchContextService } from '../../../core/services/branch-context.service';
 import { ErrorService } from '../../../core/services/error.service';
+import { PosPrefillService } from '../../../core/services/pos-prefill.service';
 import { CreditService, CreateCreditAccountRequest } from '../../../core/services/credit.service';
 import { MpesaService } from '../../../core/services/mpesa.service';
 import { MpesaPaymentDialogComponent } from './mpesa-payment.dialog';
 
+/** Per-branch stock for the "available at other branches" infobite. */
+interface OtherBranchStock {
+  branchName: string;
+  quantity: number;
+}
+
 /**
- * Enhanced search result that includes product and inventory details
+ * Enhanced search result that includes product and inventory details.
+ * totalQuantity = stock at current branch; otherBranchesBreakdown = per-branch stock elsewhere (for infobite).
  */
 interface ProductSearchResult {
   product: ProductDto;
@@ -28,6 +42,8 @@ interface ProductSearchResult {
   totalQuantity: number;
   hasMultipleBatches: boolean;
   selectedBatchIndex?: number; // Index of selected batch
+  /** Per-branch stock at other branches (when 0 at current branch, show infobite e.g. "2 in Main branch"). */
+  otherBranchesBreakdown?: OtherBranchStock[];
 }
 
 /**
@@ -49,9 +65,15 @@ interface ProductSearchResult {
     MatIconModule,
     MatButtonModule,
     MatInputModule,
+    MatFormFieldModule,
     MatSelectModule,
     MatCardModule,
-    MatDialogModule
+    MatCheckboxModule,
+    MatProgressSpinnerModule,
+    MatDividerModule,
+    MatDialogModule,
+    MatDatepickerModule,
+    MatNativeDateModule
   ],
   templateUrl: './pos.component.html',
   styleUrl: './pos.component.scss'
@@ -64,6 +86,7 @@ export class PosComponent implements OnInit, OnDestroy {
   private readonly mpesaService = inject(MpesaService);
   readonly branchContext = inject(BranchContextService);
   private readonly errorService = inject(ErrorService);
+  private readonly posPrefillService = inject(PosPrefillService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
@@ -83,27 +106,28 @@ export class PosComponent implements OnInit, OnDestroy {
   readonly paymentAmount = signal(0);
   readonly isProcessing = signal(false);
   readonly showCustomerForm = signal(false);
-  
+
   // Credit sale toggle
   readonly isCreditSale = signal(false);
-  
+
   // Credit payment form fields
   readonly showCreditForm = signal(false);
   readonly creditLimit = signal(0);
-  readonly expectedPaymentDate = signal('');
-  readonly creditNotes = signal('');
+  readonly expectedPaymentDate = signal<Date | null>(null);
 
   // Customer search and management
   readonly customerSearchInput = signal('');
   readonly customerSearchResults = signal<CustomerDto[]>([]);
   readonly showCustomerSearchResults = signal(false);
+  readonly showCustomerSearch = signal(false);
   readonly isCustomerSearching = signal(false);
   readonly selectedCustomer = signal<CustomerDto | null>(null);
   readonly showCreateCustomerForm = signal(false);
   readonly isCreatingCustomer = signal(false);
   readonly hasSearched = signal(false);
   readonly customerSortOrder = signal<'asc' | 'desc'>('asc');
-  
+  readonly customerDrawerExpanded = signal(false);
+
   // Advanced search
   showAdvancedSearch = false;
   advancedSearch = {
@@ -113,10 +137,9 @@ export class PosComponent implements OnInit, OnDestroy {
     customerNumber: '',
     isActive: ''
   };
-  
-  // New customer form fields
-  readonly newCustomerFirstName = signal('');
-  readonly newCustomerLastName = signal('');
+
+  // New customer form fields (single Name field per UX guidelines)
+  readonly newCustomerName = signal('');
   readonly newCustomerPhone = signal('');
 
   // Caching state
@@ -124,16 +147,8 @@ export class PosComponent implements OnInit, OnDestroy {
   private inventoryCache = new Map<string, CachedInventoryItem[]>();
   private pricingCache = new Map<string, number>();
   private lastCacheUpdate = 0;
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private readonly CACHE_DURATION = 4 * 60 * 1000; // 4 minutes – periodic stock refresh for multi-user consistency
   private readonly MAX_CACHE_SIZE = 1000; // Maximum items to cache
-
-  // Draft management state
-  readonly savedDrafts = signal<SaleDraft[]>([]);
-  readonly currentDraftId = signal<string | null>(null);
-  readonly isDraftModified = signal(false);
-  private autoSaveTimeout: any;
-  private readonly AUTO_SAVE_INTERVAL = 30000; // 30 seconds
-  private readonly DRAFT_STORAGE_KEY = 'pos_sale_drafts';
 
   // Branch context state
   readonly currentBranchId = signal<string | null>(null);
@@ -150,6 +165,14 @@ export class PosComponent implements OnInit, OnDestroy {
   readonly mpesaEnabled = signal(false);
   readonly mpesaLoading = signal(false);
 
+  // Stepper state for mobile-friendly step-by-step flow
+  readonly currentStep = signal(0);
+
+  /** Shown after a successful sale as a short "reward" moment before redirect to sales list. */
+  readonly showSaleSuccess = signal(false);
+  private successRedirectTimeout: ReturnType<typeof setTimeout> | null = null;
+  readonly totalSteps = 3; // 0: Products, 1: Cart, 2: Payment
+
   // Available payment methods (excluding CREDIT which is handled separately)
   readonly paymentMethods = Object.values(PaymentMethod).filter(method => method !== PaymentMethod.CREDIT);
 
@@ -158,12 +181,6 @@ export class PosComponent implements OnInit, OnDestroy {
   private customerSearchTimeout: any;
 
   ngOnInit(): void {
-    // Load saved drafts from localStorage
-    this.loadSavedDrafts();
-
-    // Set up auto-save
-    this.setupAutoSave();
-
     // Load M-Pesa configuration
     this.loadMpesaConfiguration();
 
@@ -174,30 +191,49 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Handles branch context changes
+   * Handles branch context changes.
+   * Delays redirect on null to avoid race condition on reload (branch restoration is async).
    */
   private handleBranchChange(branch: any): void {
     if (!branch) {
-      // No branch selected - redirect to branch selection
       this.currentBranchId.set(null);
       this.isBranchValid.set(false);
       this.clearAllData();
-      this.router.navigate(['/branches']);
+      // Delay redirect to allow Shell to restore branch from localStorage on reload
+      setTimeout(() => {
+        if (!this.branchContext.currentBranch) {
+          this.router.navigate(['/branches']);
+        }
+      }, 400);
       return;
     }
 
     // Branch selected - validate and initialize
     this.currentBranchId.set(branch.id);
     this.isBranchValid.set(true);
-    
+
     // Clear any existing data from previous branch
     this.clearAllData();
-    
-    // Initialize cache for the new branch
-    this.initializeCache();
-    
-    // Check for existing draft for this branch
-    this.loadBranchDraft(branch.id);
+
+    // Initialize cache for the new branch, then add prefilled item if navigating from inventory
+    this.initializeCache().then(() => this.addPrefillItemIfAny());
+  }
+
+  /** Go to next step in the POS flow */
+  nextStep(): void {
+    this.currentStep.update(s => Math.min(s + 1, this.totalSteps - 1));
+  }
+
+  /** Go to previous step */
+  prevStep(): void {
+    this.currentStep.update(s => Math.max(s - 1, 0));
+  }
+
+  /** Navigate to a specific step */
+  goToStep(step: number): void {
+    if (step >= 0 && step < this.totalSteps) {
+      this.currentStep.set(step);
+    }
   }
 
   /**
@@ -206,7 +242,7 @@ export class PosComponent implements OnInit, OnDestroy {
   private clearAllData(): void {
     // Clear cart
     this.cart.set([]);
-    
+
     // Clear form data
     this.customerName.set('');
     this.customerPhone.set('');
@@ -214,36 +250,34 @@ export class PosComponent implements OnInit, OnDestroy {
     this.selectedPaymentMethod.set(PaymentMethod.CASH);
     this.paymentAmount.set(0);
     this.showCustomerForm.set(false);
-    
+
     // Clear credit form data
     this.isCreditSale.set(false);
     this.showCreditForm.set(false);
     this.creditLimit.set(0);
-    
+
     // Clear customer search and selection
     this.clearCustomerSearch();
     this.clearSelectedCustomer();
     this.cancelCreateCustomer();
     this.clearAdvancedSearch();
-    this.expectedPaymentDate.set('');
-    this.creditNotes.set('');
-    
+    this.expectedPaymentDate.set(null);
+
     // Clear search data
     this.productSearchInput.set('');
     this.searchResults.set([]);
     this.showSearchResults.set(false);
     this.selectedSearchIndex.set(-1);
-    
+
     // Clear barcode input
     this.barcodeInput.set('');
-    
-    // Clear current draft
-    this.currentDraftId.set(null);
-    this.isDraftModified.set(false);
-    
+
+    // Reset stepper
+    this.currentStep.set(0);
+
     // Clear cache
     this.invalidateCache();
-    
+
     // Recalculate totals
     this.recalculateTotals();
   }
@@ -256,10 +290,10 @@ export class PosComponent implements OnInit, OnDestroy {
     if (!currentBranch) return;
 
     try {
-      // Load all products and inventory data in parallel
+      // Load all products and inventory for all branches (so we can show "available at other branches" infobite)
       const [productsResponse, inventoryData] = await Promise.all([
         this.productsService.searchProducts('').toPromise(), // Empty query to get all products
-        this.inventoryService.getInventoryByBranch(currentBranch.id).toPromise()
+        this.inventoryService.getInventoryAllBranches().toPromise()
       ]);
 
       if (productsResponse?.products) {
@@ -271,9 +305,9 @@ export class PosComponent implements OnInit, OnDestroy {
       }
 
       if (inventoryData) {
-        // Cache inventory data by product ID
+        // Cache inventory data by product ID (include branchName for infobite)
         const inventoryByProduct = new Map<string, CachedInventoryItem[]>();
-        inventoryData.forEach((inv: InventoryDto) => {
+          inventoryData.forEach((inv: InventoryDto) => {
           if (!inventoryByProduct.has(inv.productId)) {
             inventoryByProduct.set(inv.productId, []);
           }
@@ -281,10 +315,12 @@ export class PosComponent implements OnInit, OnDestroy {
             inventoryId: inv.id,
             productId: inv.productId,
             branchId: inv.branchId,
+            branchName: inv.branchName,
             quantity: inv.quantity,
             location: inv.locationInBranch || 'Unknown',
             expiryDate: inv.expiryDate,
             sellingPrice: inv.sellingPrice,
+            unitCost: inv.unitCost,
             batchNumber: inv.batchNumber,
             manufacturingDate: inv.manufacturingDate
           });
@@ -340,7 +376,7 @@ export class PosComponent implements OnInit, OnDestroy {
     try {
       // Ensure cache is up to date
       await this.refreshCacheIfNeeded();
-      
+
       // Look up product in cache by barcode
       const product = this.productCache.get(barcode);
       if (!product) {
@@ -348,10 +384,11 @@ export class PosComponent implements OnInit, OnDestroy {
         return;
       }
 
-      // Get inventory data from cache
+      // Get inventory data from cache (all branches) and use only current branch for sale
       const inventoryData = this.inventoryCache.get(product.id) || [];
-      const availableInventory = inventoryData.filter(inv => inv.quantity > 0);
-      
+      const branchInventory = inventoryData.filter((inv) => inv.branchId === currentBranch.id);
+      const availableInventory = branchInventory.filter((inv) => inv.quantity > 0);
+
       if (availableInventory.length === 0) {
         this.errorService.show('Product out of stock');
         return;
@@ -372,7 +409,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
       this.addProductToCart(response);
       this.barcodeInput.set('');
-      
+
     } catch {
       this.errorService.show('Product not found or out of stock');
     }
@@ -390,54 +427,73 @@ export class PosComponent implements OnInit, OnDestroy {
     }
 
     this.isSearching.set(true);
-    
+
     try {
       // Ensure cache is up to date
       await this.refreshCacheIfNeeded();
-      
+
       // Search in cached products and create enhanced results
       const searchResults: ProductSearchResult[] = [];
       const queryLower = query.toLowerCase();
-      
+
       for (const [key, product] of this.productCache) {
         // Skip barcode entries (they're duplicates)
         if (key === product.barcode) continue;
-        
+
         // Search in product name and generic name
         if (
           product.name.toLowerCase().includes(queryLower) ||
           (product.genericName && product.genericName.toLowerCase().includes(queryLower))
         ) {
-          // Get inventory items for this product
+          const currentBranch = this.getCurrentBranch();
           const inventoryItems = this.inventoryCache.get(product.id) || [];
-          const totalQuantity = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
-          const hasMultipleBatches = inventoryItems.length > 1;
-          
+          const currentBranchItems = currentBranch
+            ? inventoryItems.filter((inv) => inv.branchId === currentBranch.id)
+            : [];
+          const totalQuantity = currentBranchItems.reduce((sum, item) => sum + item.quantity, 0);
+          const otherBranchItems = currentBranch
+            ? inventoryItems.filter((inv) => inv.branchId !== currentBranch.id && inv.quantity > 0)
+            : [];
+          const otherBranchesBreakdown: OtherBranchStock[] = [];
+          const byBranchId = new Map<string, { name: string; qty: number }>();
+          otherBranchItems.forEach((inv) => {
+            const name = inv.branchName || `Branch ${inv.branchId.slice(0, 8)}`;
+            const cur = byBranchId.get(inv.branchId);
+            if (cur) cur.qty += inv.quantity;
+            else byBranchId.set(inv.branchId, { name, qty: inv.quantity });
+          });
+          byBranchId.forEach(({ name, qty }) => {
+            otherBranchesBreakdown.push({ branchName: name, quantity: qty });
+          });
+          otherBranchesBreakdown.sort((a, b) => b.quantity - a.quantity);
+          const hasMultipleBatches = currentBranchItems.length > 1;
+
           searchResults.push({
             product,
-            inventoryItems,
+            inventoryItems: currentBranchItems,
             totalQuantity,
             hasMultipleBatches,
-            selectedBatchIndex: 0 // Default to first batch
+            selectedBatchIndex: 0,
+            otherBranchesBreakdown: otherBranchesBreakdown.length > 0 ? otherBranchesBreakdown : undefined
           });
         }
       }
-      
+
       // Sort by relevance (exact matches first, then partial matches)
       searchResults.sort((a, b) => {
         const aName = a.product.name.toLowerCase();
         const bName = b.product.name.toLowerCase();
-        
+
         if (aName.startsWith(queryLower) && !bName.startsWith(queryLower)) return -1;
         if (!aName.startsWith(queryLower) && bName.startsWith(queryLower)) return 1;
-        
+
         return aName.localeCompare(bName);
       });
-      
+
       // Limit results to prevent UI overload
       this.searchResults.set(searchResults.slice(0, 20));
       this.showSearchResults.set(true);
-      
+
     } catch (error: any) {
       this.handleApiError(error, 'Failed to search products');
       this.searchResults.set([]);
@@ -467,14 +523,15 @@ export class PosComponent implements OnInit, OnDestroy {
       // Use selected batch or first available batch
       const selectedBatch = this.getSelectedBatch(searchResult);
       const availableInventory = selectedBatch ? [selectedBatch] : searchResult.inventoryItems.filter(inv => inv.quantity > 0);
-      
+
       if (availableInventory.length === 0) {
         this.errorService.show('Product out of stock');
         return;
       }
 
-      const sellingPrice = this.pricingCache.get(product.id) || 0;
-      
+      const firstInv = availableInventory[0] as CachedInventoryItem;
+      const sellingPrice = firstInv.sellingPrice ?? this.pricingCache.get(product.id) ?? 0;
+
       const scanResponse: BarcodeScanResponse = {
         productId: product.id,
         productName: product.name,
@@ -527,253 +584,6 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Loads saved drafts from localStorage
-   */
-  private loadSavedDrafts(): void {
-    try {
-      const savedDraftsJson = localStorage.getItem(this.DRAFT_STORAGE_KEY);
-      if (savedDraftsJson) {
-        const drafts: SaleDraft[] = JSON.parse(savedDraftsJson);
-        this.savedDrafts.set(drafts);
-      }
-    } catch (error) {
-      console.error('Failed to load saved drafts:', error);
-      this.savedDrafts.set([]);
-    }
-  }
-
-  /**
-   * Saves drafts to localStorage
-   */
-  private saveDraftsToStorage(): void {
-    try {
-      const drafts = this.savedDrafts();
-      localStorage.setItem(this.DRAFT_STORAGE_KEY, JSON.stringify(drafts));
-    } catch (error) {
-      console.error('Failed to save drafts:', error);
-    }
-  }
-
-  /**
-   * Sets up auto-save functionality
-   */
-  private setupAutoSave(): void {
-    // Auto-save every 30 seconds if there are changes
-    setInterval(() => {
-      if (this.isDraftModified() && this.cart().length > 0) {
-        this.autoSaveDraft();
-      }
-    }, this.AUTO_SAVE_INTERVAL);
-  }
-
-  /**
-   * Auto-saves the current draft
-   */
-  private autoSaveDraft(): void {
-    if (this.cart().length === 0) return;
-
-    const currentBranch = this.getCurrentBranch();
-    if (!currentBranch) return;
-
-    const draft: SaleDraft = this.createDraftFromCurrentState();
-    this.saveDraft(draft, true); // true for auto-save
-  }
-
-  /**
-   * Creates a draft from the current Saam POS state
-   */
-  private createDraftFromCurrentState(): SaleDraft {
-    const currentBranch = this.getCurrentBranch();
-    if (!currentBranch) {
-      throw new Error('No valid branch context for creating draft');
-    }
-    
-    return {
-      id: this.currentDraftId() || this.generateDraftId(),
-      branchId: currentBranch.id,
-      branchName: currentBranch.name,
-      cartItems: this.cart(),
-      customerName: this.customerName(),
-      customerPhone: this.customerPhone(),
-      notes: this.notes(),
-      selectedPaymentMethod: this.selectedPaymentMethod(),
-      paymentAmount: this.paymentAmount(),
-      subtotal: this.subtotal(),
-      discountAmount: this.discountAmount(),
-      totalAmount: this.totalAmount(),
-      showCustomerForm: this.showCustomerForm(),
-      // Credit form fields
-      isCreditSale: this.isCreditSale(),
-      creditLimit: this.creditLimit(),
-      expectedPaymentDate: this.expectedPaymentDate(),
-      creditNotes: this.creditNotes(),
-      remainingBalance: this.remainingBalance(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isAutoSaved: false
-    };
-  }
-
-  /**
-   * Saves a draft
-   */
-  saveDraft(draft?: SaleDraft, isAutoSave = false): void {
-    const draftToSave = draft || this.createDraftFromCurrentState();
-    draftToSave.isAutoSaved = isAutoSave;
-    draftToSave.updatedAt = new Date().toISOString();
-
-    const currentDrafts = this.savedDrafts();
-    const existingIndex = currentDrafts.findIndex(d => d.id === draftToSave.id);
-
-    if (existingIndex >= 0) {
-      // Update existing draft
-      currentDrafts[existingIndex] = draftToSave;
-    } else {
-      // Add new draft
-      currentDrafts.push(draftToSave);
-    }
-
-    this.savedDrafts.set([...currentDrafts]);
-    this.currentDraftId.set(draftToSave.id);
-    this.isDraftModified.set(false);
-    this.saveDraftsToStorage();
-
-    if (!isAutoSave) {
-      this.snackBar.open('Draft saved successfully', 'Close', { duration: 2000 });
-    }
-  }
-
-  /**
-   * Loads a specific draft
-   */
-  loadDraft(draftId: string): void {
-    const draft = this.savedDrafts().find(d => d.id === draftId);
-    if (!draft) {
-      this.errorService.show('Draft not found');
-      return;
-    }
-
-    // Validate branch context
-    const currentBranch = this.getCurrentBranch();
-    if (!currentBranch) {
-      return; // getCurrentBranch already handles the error and navigation
-    }
-
-    // Check if current branch matches draft branch
-    if (draft.branchId !== currentBranch.id) {
-      this.errorService.show('This draft belongs to a different branch');
-      return;
-    }
-
-    // Load draft data into current state
-    this.cart.set(draft.cartItems);
-    this.customerName.set(draft.customerName);
-    this.customerPhone.set(draft.customerPhone);
-    this.notes.set(draft.notes);
-    this.selectedPaymentMethod.set(draft.selectedPaymentMethod);
-    this.paymentAmount.set(draft.paymentAmount);
-    
-    // Restore customer form visibility
-    if (draft.showCustomerForm !== undefined) {
-      this.showCustomerForm.set(draft.showCustomerForm);
-    }
-    
-    // Load credit form fields if they exist
-    if (draft.isCreditSale !== undefined) {
-      this.isCreditSale.set(draft.isCreditSale);
-    }
-    if (draft.creditLimit !== undefined) {
-      this.creditLimit.set(draft.creditLimit);
-    }
-    if (draft.expectedPaymentDate) {
-      this.expectedPaymentDate.set(draft.expectedPaymentDate);
-    }
-    if (draft.creditNotes) {
-      this.creditNotes.set(draft.creditNotes);
-    }
-    if (draft.remainingBalance !== undefined) {
-      this.remainingBalance.set(draft.remainingBalance);
-    }
-    
-    // Show credit form if it's a credit sale
-    this.showCreditForm.set(draft.isCreditSale === true);
-    
-    this.currentDraftId.set(draft.id);
-    this.isDraftModified.set(false);
-
-    // Recalculate totals
-    this.recalculateTotals();
-
-    this.snackBar.open('Draft loaded successfully', 'Close', { duration: 2000 });
-  }
-
-  /**
-   * Loads the most recent draft for the current branch
-   */
-  private loadBranchDraft(branchId: string): void {
-    const branchDrafts = this.savedDrafts()
-      .filter(d => d.branchId === branchId)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-    if (branchDrafts.length > 0) {
-      // Ask user if they want to continue with the draft
-      this.promptToLoadDraft(branchDrafts[0]);
-    }
-  }
-
-  /**
-   * Prompts user to load a draft
-   */
-  private promptToLoadDraft(draft: SaleDraft): void {
-    const message = `You have an unsaved draft from ${new Date(draft.updatedAt).toLocaleString()}. Do you want to continue?`;
-    
-    // For now, we'll use a simple confirm dialog
-    // In a real app, you might want to use a custom dialog component
-    if (confirm(message)) {
-      this.loadDraft(draft.id);
-    } else {
-      this.deleteDraft(draft.id);
-    }
-  }
-
-  /**
-   * Deletes a draft
-   */
-  deleteDraft(draftId: string): void {
-    const currentDrafts = this.savedDrafts().filter(d => d.id !== draftId);
-    this.savedDrafts.set(currentDrafts);
-    this.saveDraftsToStorage();
-
-    if (this.currentDraftId() === draftId) {
-      this.currentDraftId.set(null);
-    }
-
-    this.snackBar.open('Draft deleted', 'Close', { duration: 2000 });
-  }
-
-  /**
-   * Clears all drafts for the current branch
-   */
-  clearAllDrafts(): void {
-    const currentBranch = this.getCurrentBranch();
-    if (!currentBranch) return;
-
-    const currentDrafts = this.savedDrafts().filter(d => d.branchId !== currentBranch.id);
-    this.savedDrafts.set(currentDrafts);
-    this.saveDraftsToStorage();
-    this.currentDraftId.set(null);
-
-    this.snackBar.open('All drafts cleared', 'Close', { duration: 2000 });
-  }
-
-  /**
-   * Generates a unique draft ID
-   */
-  private generateDraftId(): string {
-    return 'draft-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-  }
-
-  /**
    * Validates that a valid branch is selected
    */
   private validateBranchContext(): boolean {
@@ -796,11 +606,56 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Adds prefilled inventory item to cart when navigating from inventory via Sell action.
+   */
+  private addPrefillItemIfAny(): void {
+    const inventoryItem = this.posPrefillService.getAndClearPrefillItem();
+    if (!inventoryItem) return;
+
+    const currentBranch = this.branchContext.currentBranch;
+    if (!currentBranch || inventoryItem.branchId !== currentBranch.id) return;
+
+    const cachedInv: CachedInventoryItem = {
+      inventoryId: inventoryItem.id,
+      productId: inventoryItem.productId,
+      branchId: inventoryItem.branchId,
+      quantity: inventoryItem.quantity,
+      location: inventoryItem.locationInBranch || 'Unknown',
+      expiryDate: inventoryItem.expiryDate,
+      sellingPrice: inventoryItem.sellingPrice,
+      unitCost: inventoryItem.unitCost,
+      batchNumber: inventoryItem.batchNumber,
+      manufacturingDate: inventoryItem.manufacturingDate
+    };
+
+    const existingByProduct = this.inventoryCache.get(inventoryItem.productId) || [];
+    if (!existingByProduct.some((inv) => inv.inventoryId === inventoryItem.id)) {
+      this.inventoryCache.set(inventoryItem.productId, [...existingByProduct, cachedInv]);
+    }
+    if (inventoryItem.sellingPrice && inventoryItem.sellingPrice > 0) {
+      this.pricingCache.set(inventoryItem.productId, inventoryItem.sellingPrice);
+    }
+
+    const scanResponse: BarcodeScanResponse = {
+      productId: inventoryItem.productId,
+      productName: inventoryItem.productName,
+      barcode: inventoryItem.productCode || '',
+      availableInventory: [cachedInv],
+      sellingPrice: inventoryItem.sellingPrice ?? 0,
+      requiresPrescription: false
+    };
+
+    this.addProductToCart(scanResponse);
+    this.goToStep(1);
+    this.snackBar.open(`${inventoryItem.productName} added to cart`, 'Close', { duration: 2000 });
+  }
+
+  /**
    * Extracts and displays detailed error messages from API responses
    */
   private handleApiError(error: any, defaultMessage: string): void {
     let errorMessage = defaultMessage;
-    
+
     if (error?.error?.detail) {
       // Use the detailed error message from the API response
       errorMessage = error.error.detail;
@@ -811,7 +666,7 @@ export class PosComponent implements OnInit, OnDestroy {
       // Fallback to general error message
       errorMessage = error.message;
     }
-    
+
     this.errorService.show(errorMessage);
   }
 
@@ -820,11 +675,11 @@ export class PosComponent implements OnInit, OnDestroy {
    */
   private handleStockError(error: any): void {
     let errorMessage = 'Insufficient stock available';
-    
+
     if (error?.error?.detail) {
       // Check if it's a stock-related error
-      if (error.error.detail.includes('Insufficient stock') || 
-          error.error.detail.includes('Available:') || 
+      if (error.error.detail.includes('Insufficient stock') ||
+          error.error.detail.includes('Available:') ||
           error.error.detail.includes('Requested:')) {
         errorMessage = error.error.detail;
       } else {
@@ -835,7 +690,7 @@ export class PosComponent implements OnInit, OnDestroy {
     } else if (error?.message) {
       errorMessage = error.message;
     }
-    
+
     this.errorService.show(errorMessage);
   }
 
@@ -850,15 +705,18 @@ export class PosComponent implements OnInit, OnDestroy {
       this.updateCartItemQuantity(existingItem.id, existingItem.quantity + 1);
     } else {
       // Add new item to cart
+      const inv = scanResponse.availableInventory?.[0] as CachedInventoryItem | undefined;
+      const unitCost = inv?.unitCost ?? 0;
+      const price = scanResponse.sellingPrice || 0;
       const newItem: CartItem = {
         id: this.generateCartItemId(),
         productId: scanResponse.productId,
         productName: scanResponse.productName,
         barcode: scanResponse.barcode,
         quantity: 1,
-        unitPrice: scanResponse.sellingPrice || 0,
-        discountAmount: 0, // Initialize discount to 0
-        lineTotal: scanResponse.sellingPrice || 0,
+        unitPrice: price,
+        unitCost,
+        lineTotal: price,
         requiresPrescription: scanResponse.requiresPrescription,
         inventoryItems: scanResponse.availableInventory
       };
@@ -867,7 +725,6 @@ export class PosComponent implements OnInit, OnDestroy {
     }
 
     this.recalculateTotals();
-    this.isDraftModified.set(true);
   }
 
   /**
@@ -877,9 +734,24 @@ export class PosComponent implements OnInit, OnDestroy {
     const inventoryData = this.inventoryCache.get(item.productId) || [];
     const currentBranch = this.getCurrentBranch();
     if (!currentBranch) return 0;
-    
+
     const branchInventory = inventoryData.filter(inv => inv.branchId === currentBranch.id);
     return branchInventory.reduce((sum, inv) => sum + inv.quantity, 0);
+  }
+
+  /**
+   * Decrements cart item quantity by 1. Removes item if quantity would become 0.
+   */
+  decrementCartItemQuantity(item: CartItem): void {
+    this.updateCartItemQuantity(item.id, item.quantity - 1);
+  }
+
+  /**
+   * Increments cart item quantity by 1, capped at available stock.
+   */
+  incrementCartItemQuantity(item: CartItem): void {
+    const max = this.getAvailableStock(item);
+    this.updateCartItemQuantity(item.id, Math.min(item.quantity + 1, max));
   }
 
   /**
@@ -897,7 +769,7 @@ export class PosComponent implements OnInit, OnDestroy {
     if (!item) return;
 
     const availableStock = this.getAvailableStock(item);
-    
+
     // Validate against available stock
     if (quantity > availableStock) {
       this.snackBar.open(
@@ -910,27 +782,11 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Update cart item and recalculate immediately
     this.cart.update(items =>
-      items.map(i => {
-        if (i.id === itemId) {
-          const itemSubtotal = i.unitPrice * quantity;
-          const itemDiscount = i.discountAmount || 0;
-          const maxAllowedDiscount = itemSubtotal * 0.1; // 10% max
-          const validDiscount = Math.min(itemDiscount, maxAllowedDiscount);
-          return { 
-            ...i, 
-            quantity, 
-            discountAmount: validDiscount,
-            lineTotal: itemSubtotal - validDiscount 
-          };
-        }
-        return i;
-      })
+      items.map(i => i.id === itemId ? { ...i, quantity, lineTotal: i.unitPrice * quantity } : i)
     );
 
     this.recalculateTotals();
-    this.isDraftModified.set(true);
   }
 
   /**
@@ -947,7 +803,6 @@ export class PosComponent implements OnInit, OnDestroy {
   removeCartItem(itemId: string): void {
     this.cart.update(items => items.filter(item => item.id !== itemId));
     this.recalculateTotals();
-    this.isDraftModified.set(true);
   }
 
   /**
@@ -956,121 +811,29 @@ export class PosComponent implements OnInit, OnDestroy {
   clearCart(): void {
     this.cart.set([]);
     this.recalculateTotals();
-    this.isDraftModified.set(true);
   }
 
-    /**
-   * Recalculates all totals including item discounts
-   */
   recalculateTotals(): void {
     const items = this.cart();
-    
-    // Calculate subtotal before discounts
-    const subtotalBeforeDiscount = items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-    
-    // Calculate total discount from all items
-    const totalDiscount = items.reduce((sum, item) => {
-      const itemSubtotal = item.unitPrice * item.quantity;
-      const maxAllowedDiscount = itemSubtotal * 0.1; // 10% max per item
-      const validDiscount = Math.min(item.discountAmount || 0, maxAllowedDiscount);
-      return sum + validDiscount;
-    }, 0);
-    
-    // Calculate subtotal after discounts (sum of line totals)
-    const subtotal = items.reduce((sum, item) => {
-      const itemSubtotal = item.unitPrice * item.quantity;
-      const itemDiscount = item.discountAmount || 0;
-      const maxAllowedDiscount = itemSubtotal * 0.1;
-      const validDiscount = Math.min(itemDiscount, maxAllowedDiscount);
-      const itemLineTotal = itemSubtotal - validDiscount;
-      return sum + itemLineTotal;
-    }, 0);
-    
-    this.subtotal.set(subtotalBeforeDiscount);
-    this.discountAmount.set(totalDiscount);
-    
-    // Calculate total amount (no tax for now)
-    const totalAmount = subtotal;
-    this.totalAmount.set(totalAmount);
-    
-    // Calculate change for cash payments
+    const total = items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+    this.subtotal.set(total);
+    this.discountAmount.set(0);
+    this.totalAmount.set(total);
+    if (!this.isCreditSale()) {
+      this.paymentAmount.set(total);
+    }
     const change = this.paymentAmount() - this.totalAmount();
     this.changeAmount.set(Math.max(0, change));
-    
-    // Calculate remaining balance for credit sales
-    if (this.isCreditSale()) {
-      const remainingBalance = Math.max(0, this.totalAmount() - this.paymentAmount());
-      this.remainingBalance.set(remainingBalance);
-    } else {
-      this.remainingBalance.set(0);
-    }
+    this.remainingBalance.set(Math.max(0, this.totalAmount() - this.paymentAmount()));
   }
-  
-  /**
-   * Validates discount amount for a cart item (max 10% of selling price)
-   */
-  validateDiscount(itemId: string, discountAmount: number): { isValid: boolean; maxAllowed: number; message?: string } {
-    const item = this.cart().find(i => i.id === itemId);
-    if (!item) {
-      return { isValid: false, maxAllowed: 0, message: 'Item not found' };
-    }
-    
-    const itemSubtotal = item.unitPrice * item.quantity;
-    const maxAllowed = itemSubtotal * 0.1; // 10% max
-    
-    if (discountAmount < 0) {
-      return { isValid: false, maxAllowed, message: 'Discount cannot be negative' };
-    }
-    
-    if (discountAmount > maxAllowed) {
-      return { 
-        isValid: false, 
-        maxAllowed, 
-        message: `Discount cannot exceed ${maxAllowed.toFixed(2)} (10% of selling price)` 
-      };
-    }
-    
-    return { isValid: true, maxAllowed };
-  }
-  
-  /**
-   * Updates discount amount for a cart item
-   */
-  updateCartItemDiscount(itemId: string, discountAmount: number): void {
-    const validation = this.validateDiscount(itemId, discountAmount);
-    
-    if (!validation.isValid) {
-      this.snackBar.open(validation.message || 'Invalid discount amount', 'Close', { duration: 3000 });
-      // Set to max allowed if exceeded
-      discountAmount = Math.min(discountAmount, validation.maxAllowed);
-    }
-    
+
+  /** Updates unit price for a cart item (allows selling above list price) */
+  updateCartItemPrice(itemId: string, unitPrice: number): void {
+    const price = Math.max(0, unitPrice || 0);
     this.cart.update(items =>
-      items.map(i => {
-        if (i.id === itemId) {
-          const itemSubtotal = i.unitPrice * i.quantity;
-          const validDiscount = Math.min(discountAmount, validation.maxAllowed);
-          const itemLineTotal = itemSubtotal - validDiscount;
-          return { 
-            ...i, 
-            discountAmount: validDiscount,
-            lineTotal: Math.max(0, itemLineTotal) // Ensure line total is not negative
-          };
-        }
-        return i;
-      })
+      items.map(i => i.id === itemId ? { ...i, unitPrice: price, lineTotal: price * i.quantity } : i)
     );
-    
     this.recalculateTotals();
-    this.isDraftModified.set(true);
-  }
-  
-  /**
-   * Gets the maximum allowed discount for an item
-   */
-  getMaxDiscount(item: CartItem): number {
-    const itemSubtotal = item.unitPrice * item.quantity;
-    return itemSubtotal * 0.1; // 10% max
   }
 
   /**
@@ -1096,7 +859,7 @@ export class PosComponent implements OnInit, OnDestroy {
     for (const item of cartItems) {
       const inventoryData = this.inventoryCache.get(item.productId) || [];
       const branchInventory = inventoryData.filter(inv => inv.branchId === currentBranch.id);
-      
+
       if (branchInventory.length === 0) {
         return {
           isValid: false,
@@ -1104,7 +867,7 @@ export class PosComponent implements OnInit, OnDestroy {
         };
       }
     }
-    
+
     return { isValid: true };
   }
 
@@ -1121,13 +884,13 @@ export class PosComponent implements OnInit, OnDestroy {
     }
 
     const cartItems = this.cart();
-    
+
     for (const item of cartItems) {
       const inventoryData = this.inventoryCache.get(item.productId) || [];
       // Only consider inventory from the current branch
       const branchInventory = inventoryData.filter(inv => inv.branchId === currentBranch.id);
       const totalAvailable = branchInventory.reduce((sum, inv) => sum + inv.quantity, 0);
-      
+
       if (totalAvailable < item.quantity) {
         return {
           isValid: false,
@@ -1135,7 +898,7 @@ export class PosComponent implements OnInit, OnDestroy {
         };
       }
     }
-    
+
     return { isValid: true };
   }
 
@@ -1156,7 +919,8 @@ export class PosComponent implements OnInit, OnDestroy {
     }
 
     // Validate expected payment date
-    if (!this.expectedPaymentDate()) {
+    const expectedDate = this.expectedPaymentDate();
+    if (!expectedDate) {
       return {
         isValid: false,
         errorMessage: 'Expected payment date is required for credit payments'
@@ -1164,10 +928,9 @@ export class PosComponent implements OnInit, OnDestroy {
     }
 
     // Check if expected payment date is in the future
-    const expectedDate = new Date(this.expectedPaymentDate());
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time to start of day
-    
+
     if (expectedDate < today) {
       return {
         isValid: false,
@@ -1215,10 +978,25 @@ export class PosComponent implements OnInit, OnDestroy {
   getCreditSaleStatus(): { isCreditSale: boolean; customerName?: string; expectedPaymentDate?: string; remainingBalance: number } {
     return {
       isCreditSale: this.isCreditSale(),
-      customerName: this.selectedCustomer() ? `${this.selectedCustomer()!.firstName} ${this.selectedCustomer()!.lastName}` : undefined,
-      expectedPaymentDate: this.expectedPaymentDate() || undefined,
+      customerName: this.selectedCustomer() ? this.getCustomerDisplayName(this.selectedCustomer()!) : undefined,
+      expectedPaymentDate: this.formatExpectedPaymentDateStr() || undefined,
       remainingBalance: this.remainingBalance()
     };
+  }
+
+  /** Formats expected payment date as yyyy-MM-dd for API, or empty string if not set. */
+  private formatExpectedPaymentDateStr(): string {
+    const d = this.expectedPaymentDate();
+    if (!d) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  /** Display name for a customer (handles optional lastName). */
+  getCustomerDisplayName(customer: CustomerDto): string {
+    return [customer.firstName, customer.lastName].filter(Boolean).join(' ').trim() || customer.firstName;
   }
 
   /**
@@ -1231,9 +1009,9 @@ export class PosComponent implements OnInit, OnDestroy {
 
     const creditValidation = this.validateCreditPayment();
     if (!creditValidation.isValid) {
-      return { 
-        isValid: false, 
-        message: creditValidation.errorMessage 
+      return {
+        isValid: false,
+        message: creditValidation.errorMessage
       };
     }
 
@@ -1251,11 +1029,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
     // Validate payment amount based on sale type
     if (!this.isCreditSale()) {
-      // Regular sales require full payment
-      if (this.paymentAmount() < this.totalAmount()) {
-        this.errorService.show('Payment amount is insufficient');
-        return;
-      }
+      this.paymentAmount.set(this.totalAmount());
     } else {
       // Credit sales allow partial payment (including zero)
       if (this.paymentAmount() < 0) {
@@ -1297,39 +1071,28 @@ export class PosComponent implements OnInit, OnDestroy {
     this.isProcessing.set(true);
 
     try {
-      const lineItems: CreateSaleLineItemRequest[] = this.cart().map(item => {
-        // Validate discount before sending to backend
-        const itemSubtotal = item.unitPrice * item.quantity;
-        const maxAllowedDiscount = itemSubtotal * 0.1; // 10% max
-        const validDiscount = Math.min(item.discountAmount || 0, maxAllowedDiscount);
-        
-        return {
-          productId: item.productId,
-          inventoryId: (item.inventoryItems[0] as any)?.inventoryId || '',
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discountAmount: validDiscount > 0 ? validDiscount : undefined
-        };
-      });
+      const lineItems: CreateSaleLineItemRequest[] = this.cart().map(item => ({
+        productId: item.productId,
+        inventoryId: (item.inventoryItems[0] as any)?.inventoryId || '',
+        quantity: item.quantity,
+        unitPrice: item.unitPrice
+      }));
 
       // For credit sales with no upfront payment, send empty payments array
       // For credit sales with partial payment, include the payment
       // For regular sales, always include payment
       const payments: CreateSalePaymentRequest[] = [];
-      
-      if (this.paymentAmount() > 0) {
+
+      const amountToPay = this.isCreditSale() ? this.paymentAmount() : this.totalAmount();
+      if (amountToPay > 0) {
         payments.push({
           paymentMethod: this.selectedPaymentMethod(),
-          amount: this.paymentAmount()
+          amount: amountToPay
         });
       } else if (!this.isCreditSale()) {
-        // Non-credit sales must have payment
         throw new Error('Payment amount is required for non-credit sales');
       }
 
-      // Calculate total discount amount (sum of all item discounts)
-      const totalDiscountAmount = lineItems.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-      
       const request: CreateSaleRequest = {
         branchId: currentBranch.id,
         lineItems,
@@ -1338,7 +1101,6 @@ export class PosComponent implements OnInit, OnDestroy {
         customerName: this.customerName() || undefined,
         customerPhone: this.customerPhone() || undefined,
         notes: this.notes() || undefined,
-        discountAmount: totalDiscountAmount > 0 ? totalDiscountAmount : undefined,
         isCreditSale: this.isCreditSale()
       };
 
@@ -1353,7 +1115,7 @@ export class PosComponent implements OnInit, OnDestroy {
             if (!customer) {
               throw new Error('No customer selected for credit sale');
             }
-            
+
             const customerId = customer.id;
 
             // Now create the credit account with partial payment information
@@ -1361,67 +1123,33 @@ export class PosComponent implements OnInit, OnDestroy {
               saleId: sale.id,
               customerId: customerId,
               totalAmount: this.totalAmount(),
-              expectedPaymentDate: this.expectedPaymentDate(),
-              notes: this.creditNotes() || undefined,
+              expectedPaymentDate: this.formatExpectedPaymentDateStr(),
               paidAmount: this.paymentAmount(), // Amount paid upfront
               remainingAmount: this.remainingBalance() // Remaining balance
             };
 
             await this.creditService.createCreditAccount(creditRequest).toPromise();
-            
-            // Show appropriate success message based on payment type
-            if (this.paymentAmount() === 0) {
-              // No upfront payment
-              this.snackBar.open(
-                `Credit sale created! Total credit amount: ${this.formatCurrency(this.totalAmount())}. No upfront payment received.`,
-                'Close', 
-                { duration: 4000 }
-              );
-            } else if (this.remainingBalance() > 0) {
-              // Partial upfront payment
-              this.snackBar.open(
-                `Credit sale completed! Partial payment of ${this.formatCurrency(this.paymentAmount())} received. Remaining balance: ${this.formatCurrency(this.remainingBalance())}`,
-                'Close', 
-                { duration: 4000 }
-              );
-            } else {
-              // Full upfront payment
-              this.snackBar.open(
-                `Credit sale completed! Full payment of ${this.formatCurrency(this.paymentAmount())} received. Account fully paid.`,
-                'Close', 
-                { duration: 4000 }
-              );
-            }
           } catch (creditError: any) {
             console.error('Failed to create credit account:', creditError);
-            // Sale was successful but credit account creation failed
             this.snackBar.open('Sale completed but failed to create credit account. Please create manually.', 'Close', { duration: 5000 });
           }
-        } else {
-          this.snackBar.open('Sale completed successfully!', 'Close', { duration: 3000 });
         }
 
         this.clearCart();
         this.resetForm();
-        
-        // Clear current draft after successful sale
-        if (this.currentDraftId()) {
-          this.deleteDraft(this.currentDraftId()!);
-        }
-        
-        // Invalidate cache to ensure fresh data for next transaction
         this.invalidateCache();
-
-        // Navigate to sale details or print receipt
-        this.router.navigate(['/sales', sale.id]);
+        this.showSuccessAndRedirect();
       }
     } catch (error: any) {
-      // Check if it's a stock-related error
-      if (error?.error?.detail && 
-          (error.error.detail.includes('Insufficient stock') || 
-           error.error.detail.includes('Available:') || 
+      // Stock-related error: refresh cache so UI shows current stock, then show error
+      if (error?.error?.detail &&
+          (error.error.detail.includes('Insufficient stock') ||
+           error.error.detail.includes('Available:') ||
            error.error.detail.includes('Requested:'))) {
+        this.invalidateCache();
+        await this.initializeCache();
         this.handleStockError(error);
+        this.snackBar.open('Stock data refreshed. Please update your cart and try again.', 'Close', { duration: 5000 });
       } else {
         this.handleApiError(error, 'Failed to process sale');
       }
@@ -1440,7 +1168,8 @@ export class PosComponent implements OnInit, OnDestroy {
     this.selectedPaymentMethod.set(PaymentMethod.CASH);
     this.paymentAmount.set(0);
     this.showCustomerForm.set(false);
-    
+    this.currentStep.set(0);
+
     // Reset credit form
     this.isCreditSale.set(false);
     this.showCreditForm.set(false);
@@ -1486,7 +1215,7 @@ export class PosComponent implements OnInit, OnDestroy {
       if (this.searchTimeout) {
         clearTimeout(this.searchTimeout);
       }
-      
+
       // If a search result is selected, add it to cart
       const selectedIndex = this.selectedSearchIndex();
       if (selectedIndex >= 0 && selectedIndex < this.searchResults().length) {
@@ -1521,7 +1250,7 @@ export class PosComponent implements OnInit, OnDestroy {
    */
   onCustomerSearchChange(): void {
     const searchTerm = this.customerSearchInput().trim();
-    
+
     if (searchTerm.length < 1) {
       this.clearCustomerSearch();
       return;
@@ -1598,13 +1327,13 @@ export class PosComponent implements OnInit, OnDestroy {
       const response = await this.salesService.searchCustomers(searchRequest).toPromise();
       if (response) {
         let customers = response.customers;
-        
+
         // Apply client-side filtering for better search results
         customers = this.filterCustomersBySearchTerm(customers, searchTerm);
-        
+
         // Sort results
         customers = this.sortCustomers(customers, this.customerSortOrder());
-        
+
         this.customerSearchResults.set(customers);
       }
     } catch (error: any) {
@@ -1641,10 +1370,10 @@ export class PosComponent implements OnInit, OnDestroy {
       const response = await this.salesService.searchCustomers(searchRequest).toPromise();
       if (response) {
         let customers = response.customers;
-        
+
         // Sort results
         customers = this.sortCustomers(customers, this.customerSortOrder());
-        
+
         this.customerSearchResults.set(customers);
       }
     } catch (error: any) {
@@ -1661,14 +1390,14 @@ export class PosComponent implements OnInit, OnDestroy {
    */
   private filterCustomersBySearchTerm(customers: CustomerDto[], searchTerm: string): CustomerDto[] {
     const term = searchTerm.toLowerCase().trim();
-    
+
     return customers.filter(customer => {
       const fullName = `${customer.firstName} ${customer.lastName}`.toLowerCase();
       const phone = customer.phone?.toLowerCase() || '';
       const customerNumber = customer.customerNumber?.toLowerCase() || '';
-      
-      return fullName.includes(term) || 
-             phone.includes(term) || 
+
+      return fullName.includes(term) ||
+             phone.includes(term) ||
              customerNumber.includes(term) ||
              customer.firstName.toLowerCase().includes(term) ||
              customer.lastName.toLowerCase().includes(term);
@@ -1682,7 +1411,7 @@ export class PosComponent implements OnInit, OnDestroy {
     return customers.sort((a, b) => {
       const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
       const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-      
+
       if (order === 'asc') {
         return nameA.localeCompare(nameB);
       } else {
@@ -1697,7 +1426,7 @@ export class PosComponent implements OnInit, OnDestroy {
   sortCustomerResults(): void {
     const newOrder = this.customerSortOrder() === 'asc' ? 'desc' : 'asc';
     this.customerSortOrder.set(newOrder);
-    
+
     const sortedResults = this.sortCustomers(this.customerSearchResults(), newOrder);
     this.customerSearchResults.set(sortedResults);
   }
@@ -1726,7 +1455,7 @@ export class PosComponent implements OnInit, OnDestroy {
     this.customerSearchResults.set([]);
     this.showCustomerSearchResults.set(false);
     this.isCustomerSearching.set(false);
-    
+
     if (this.customerSearchTimeout) {
       clearTimeout(this.customerSearchTimeout);
     }
@@ -1737,10 +1466,10 @@ export class PosComponent implements OnInit, OnDestroy {
    */
   selectCustomer(customer: CustomerDto): void {
     this.selectedCustomer.set(customer);
-    this.customerName.set(`${customer.firstName} ${customer.lastName}`);
+    this.customerName.set(this.getCustomerDisplayName(customer));
     this.customerPhone.set(customer.phone || '');
     this.clearCustomerSearch();
-    this.snackBar.open(`Selected customer: ${customer.firstName} ${customer.lastName}`, 'Close', { duration: 2000 });
+    this.snackBar.open(`Selected customer: ${this.getCustomerDisplayName(customer)}`, 'Close', { duration: 2000 });
   }
 
   /**
@@ -1756,27 +1485,33 @@ export class PosComponent implements OnInit, OnDestroy {
    * Creates a new customer
    */
   async createNewCustomer(): Promise<void> {
-    if (!this.newCustomerFirstName().trim() || !this.newCustomerLastName().trim()) {
-      this.errorService.show('First name and last name are required');
+    const nameTrimmed = this.newCustomerName().trim();
+    if (!nameTrimmed) {
+      this.errorService.show('Customer name is required');
       return;
     }
 
     this.isCreatingCustomer.set(true);
 
     try {
+      // Split name: first word = firstName, rest = lastName (API requires both)
+      const parts = nameTrimmed.split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ') || '';
+
       const createRequest = {
-        firstName: this.newCustomerFirstName().trim(),
-        lastName: this.newCustomerLastName().trim(),
+        firstName,
+        lastName,
         phone: this.newCustomerPhone().trim() || undefined
       };
 
       const customer = await this.salesService.createCustomer(createRequest).toPromise();
       if (customer) {
         this.selectedCustomer.set(customer);
-        this.customerName.set(`${customer.firstName} ${customer.lastName}`);
+        this.customerName.set(this.getCustomerDisplayName(customer));
         this.customerPhone.set(customer.phone || '');
         this.cancelCreateCustomer();
-        this.snackBar.open(`Created customer: ${customer.firstName} ${customer.lastName}`, 'Close', { duration: 3000 });
+        this.snackBar.open(`Created customer: ${this.getCustomerDisplayName(customer)}`, 'Close', { duration: 3000 });
       }
     } catch (error: any) {
       console.error('Error creating customer:', error);
@@ -1791,8 +1526,7 @@ export class PosComponent implements OnInit, OnDestroy {
    */
   cancelCreateCustomer(): void {
     this.showCreateCustomerForm.set(false);
-    this.newCustomerFirstName.set('');
-    this.newCustomerLastName.set('');
+    this.newCustomerName.set('');
     this.newCustomerPhone.set('');
   }
 
@@ -1811,7 +1545,7 @@ export class PosComponent implements OnInit, OnDestroy {
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) {
       return 'today';
     } else if (diffDays === 2) {
@@ -1840,7 +1574,7 @@ export class PosComponent implements OnInit, OnDestroy {
       // Set default expected payment date to 30 days from now
       const defaultDate = new Date();
       defaultDate.setDate(defaultDate.getDate() + 30);
-      this.expectedPaymentDate.set(defaultDate.toISOString().split('T')[0]);
+      this.expectedPaymentDate.set(defaultDate);
       // Set default credit limit to the total amount
       this.creditLimit.set(this.totalAmount());
       // Set payment amount to 0 by default (no upfront payment)
@@ -1865,8 +1599,7 @@ export class PosComponent implements OnInit, OnDestroy {
    */
   clearCreditForm(): void {
     this.creditLimit.set(0);
-    this.expectedPaymentDate.set('');
-    this.creditNotes.set('');
+    this.expectedPaymentDate.set(null);
   }
 
   /**
@@ -1877,47 +1610,10 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Sets payment amount to total amount
-   */
-  setExactPayment(): void {
-    this.paymentAmount.set(this.totalAmount());
-  }
-
-  /**
    * Checks if a search result item is selected for keyboard navigation
    */
   isSearchResultSelected(index: number): boolean {
     return this.selectedSearchIndex() === index;
-  }
-
-  /**
-   * Public method to save current draft manually
-   */
-  saveCurrentDraft(): void {
-    if (this.cart().length === 0) {
-      this.errorService.show('Cannot save empty cart');
-      return;
-    }
-    this.saveDraft();
-  }
-
-  /**
-   * Public method to get drafts for current branch
-   */
-  getCurrentBranchDrafts(): SaleDraft[] {
-    const currentBranch = this.getCurrentBranch();
-    if (!currentBranch) return [];
-    
-    return this.savedDrafts()
-      .filter(d => d.branchId === currentBranch.id)
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }
-
-  /**
-   * Public method to check if there are unsaved changes
-   */
-  hasUnsavedChanges(): boolean {
-    return this.isDraftModified() && this.cart().length > 0;
   }
 
   /**
@@ -1983,15 +1679,6 @@ export class PosComponent implements OnInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((result) => {
       if (result && result.success) {
-        // Payment was successful
-        this.snackBar.open('M-Pesa payment confirmed! Transaction ID: ' + result.transactionId, 'Close', {
-          duration: 5000,
-          panelClass: 'success-snackbar',
-          horizontalPosition: 'end',
-          verticalPosition: 'top'
-        });
-
-        // Now complete the sale with M-PESA payment method
         this.completeSaleWithMpesa(result.transactionId);
       }
     });
@@ -2024,7 +1711,7 @@ export class PosComponent implements OnInit, OnDestroy {
       // Create payment with MPESA method for full amount
       const payments: CreateSalePaymentRequest[] = [
         {
-          paymentMethod: PaymentMethod.MPESA,
+          paymentMethod: PaymentMethod.TILL,
           amount: this.totalAmount()
         }
       ];
@@ -2042,26 +1729,10 @@ export class PosComponent implements OnInit, OnDestroy {
       const sale = await this.salesService.createSale(request).toPromise();
 
       if (sale) {
-        this.snackBar.open('Sale completed successfully with M-Pesa payment!', 'Close', {
-          duration: 3000,
-          panelClass: 'success-snackbar',
-          horizontalPosition: 'end',
-          verticalPosition: 'top'
-        });
-
         this.clearCart();
         this.resetForm();
-
-        // Clear current draft after successful sale
-        if (this.currentDraftId()) {
-          this.deleteDraft(this.currentDraftId()!);
-        }
-
-        // Invalidate cache to ensure fresh data
         this.invalidateCache();
-
-        // Navigate to sale details
-        this.router.navigate(['/sales', sale.id]);
+        this.showSuccessAndRedirect();
       }
     } catch (error: any) {
       console.error('Error completing sale with M-Pesa:', error);
@@ -2072,15 +1743,37 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Shows the success overlay and schedules redirect to sales list.
+   * Gives the user a clear "reward" moment before navigating.
+   */
+  private showSuccessAndRedirect(): void {
+    this.showSaleSuccess.set(true);
+    this.successRedirectTimeout = setTimeout(() => {
+      this.successRedirectTimeout = null;
+      this.showSaleSuccess.set(false);
+      this.router.navigate(['/sales']);
+    }, 2500);
+  }
+
+  /** Navigate to sales list immediately (e.g. from success overlay button). */
+  goToSalesList(): void {
+    if (this.successRedirectTimeout) {
+      clearTimeout(this.successRedirectTimeout);
+      this.successRedirectTimeout = null;
+    }
+    this.showSaleSuccess.set(false);
+    this.router.navigate(['/sales']);
+  }
+
+  /**
    * Cleanup method
    */
   ngOnDestroy(): void {
     if (this.searchTimeout) {
       clearTimeout(this.searchTimeout);
     }
-    
-    if (this.autoSaveTimeout) {
-      clearInterval(this.autoSaveTimeout);
+    if (this.successRedirectTimeout) {
+      clearTimeout(this.successRedirectTimeout);
     }
   }
 
@@ -2094,13 +1787,16 @@ export class PosComponent implements OnInit, OnDestroy {
     }).format(amount);
   }
 
+  getPaymentMethodDisplayName(method: PaymentMethod): string {
+    return getPaymentMethodDisplayName(method);
+  }
 
   /**
    * Selects a specific batch for a product in search results
    */
   selectBatch(searchResultIndex: number, batchIndex: number, event: Event): void {
     event.stopPropagation(); // Prevent triggering the main product selection
-    
+
     const searchResults = this.searchResults();
     if (searchResultIndex >= 0 && searchResultIndex < searchResults.length) {
       const updatedResults = [...searchResults];
@@ -2113,8 +1809,8 @@ export class PosComponent implements OnInit, OnDestroy {
    * Gets the selected batch for a search result
    */
   getSelectedBatch(searchResult: ProductSearchResult): CachedInventoryItem | null {
-    if (searchResult.selectedBatchIndex !== undefined && 
-        searchResult.selectedBatchIndex >= 0 && 
+    if (searchResult.selectedBatchIndex !== undefined &&
+        searchResult.selectedBatchIndex >= 0 &&
         searchResult.selectedBatchIndex < searchResult.inventoryItems.length) {
       return searchResult.inventoryItems[searchResult.selectedBatchIndex];
     }
@@ -2130,8 +1826,8 @@ interface CartItem {
   productName: string;
   barcode: string;
   quantity: number;
-  unitPrice: number;
-  discountAmount?: number; // Discount amount for this item (max 10% of selling price * quantity)
+  unitPrice: number; // Editable - can sell above list price
+  unitCost?: number;
   lineTotal: number;
   requiresPrescription: boolean;
   inventoryItems: unknown[];
@@ -2141,35 +1837,13 @@ interface CachedInventoryItem {
   inventoryId: string;
   productId: string;
   branchId: string;
+  branchName?: string;
   quantity: number;
   location: string;
   expiryDate?: string;
   sellingPrice?: number;
+  unitCost?: number;
   batchNumber?: string;
   manufacturingDate?: string;
 }
 
-interface SaleDraft {
-  id: string;
-  branchId: string;
-  branchName: string;
-  cartItems: CartItem[];
-  customerName: string;
-  customerPhone: string;
-  notes: string;
-  selectedPaymentMethod: PaymentMethod;
-  paymentAmount: number;
-  showCustomerForm: boolean;
-  subtotal: number;
-  discountAmount: number;
-  totalAmount: number;
-  // Credit form fields
-  isCreditSale?: boolean;
-  creditLimit?: number;
-  expectedPaymentDate?: string;
-  creditNotes?: string;
-  remainingBalance?: number;
-  createdAt: string;
-  updatedAt: string;
-  isAutoSaved: boolean;
-}

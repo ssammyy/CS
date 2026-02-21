@@ -61,11 +61,11 @@ export interface CreateInventoryDialogData {
                 matInput
                 type="text"
                 name="productSearch"
-                [ngModel]="productSearchInput"
-                (ngModelChange)="onProductSearchChange()"
+                [(ngModel)]="productSearchInput"
+                (ngModelChange)="onProductSearchChange($event)"
                 (focus)="onProductSearchFocus()"
                 [matAutocomplete]="productAutocomplete"
-                placeholder="Search products..."
+                placeholder="Search by name, generic name, strength, or barcode..."
                 [required]="!inventory.productId"
                 autocomplete="off">
               <mat-icon matPrefix class="mr-2 opacity-60">search</mat-icon>
@@ -76,15 +76,15 @@ export interface CreateInventoryDialogData {
                 (closed)="onAutocompleteClosed()">
                 <mat-option *ngFor="let product of filteredProducts" [value]="product">
                   <div class="flex flex-col">
-                    <span class="font-medium">{{ product.name }}</span>
-                    <span *ngIf="product.strength || product.genericName" class="text-xs text-gray-500">
-                      {{ product.strength ? product.strength : '' }}
-                      {{ product.strength && product.genericName ? ' • ' : '' }}
-                      {{ product.genericName || '' }}
+                    <span class="font-medium">{{ product?.name ?? '' }}</span>
+                    <span *ngIf="(product?.strength || product?.genericName)" class="text-xs text-gray-500">
+                      {{ product?.strength ?? '' }}
+                      {{ product?.strength && product?.genericName ? ' • ' : '' }}
+                      {{ product?.genericName ?? '' }}
                     </span>
                   </div>
                 </mat-option>
-                <mat-option *ngIf="filteredProducts.length === 0 && productSearchInput" disabled>
+                <mat-option *ngIf="filteredProducts.length === 0 && getProductSearchText().trim()" [value]="null" disabled>
                   <span class="text-gray-500">No products found</span>
                 </mat-option>
               </mat-autocomplete>
@@ -133,16 +133,19 @@ export interface CreateInventoryDialogData {
           </div>
         </div>
 
-        <!-- Financial Information Section -->
+        <!-- Financial Information (from product; editable) -->
         <div class="bg-gray-50 p-4 rounded-lg">
           <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <mat-icon class="text-brand-sky">attach_money</mat-icon>
             Financial Information
           </h3>
+          <p *ngIf="selectedProduct" class="text-sm text-gray-600 mb-3">
+            Defaults from selected product. You can override for this batch if needed.
+          </p>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <mat-form-field class="w-full" color="primary">
-              <mat-label>Unit Cost</mat-label>
+              <mat-label>Unit Cost (KES)</mat-label>
               <input
                 matInput
                 type="number"
@@ -150,12 +153,12 @@ export interface CreateInventoryDialogData {
                 [(ngModel)]="inventory.unitCost"
                 min="0"
                 step="0.01"
-                placeholder="e.g., 2.50" />
-              <mat-hint>Cost per unit for this batch</mat-hint>
+                placeholder="From product or enter manually" />
+              <mat-hint>Cost per unit{{ selectedProduct?.unitCost != null ? ' (from product)' : '' }}</mat-hint>
             </mat-form-field>
 
             <mat-form-field class="w-full" color="primary">
-              <mat-label>Selling Price</mat-label>
+              <mat-label>Selling Price (KES)</mat-label>
               <input
                 matInput
                 type="number"
@@ -163,8 +166,8 @@ export interface CreateInventoryDialogData {
                 [(ngModel)]="inventory.sellingPrice"
                 min="0"
                 step="0.01"
-                placeholder="e.g., 5.00" />
-              <mat-hint>Retail price per unit</mat-hint>
+                placeholder="From product or enter manually" />
+              <mat-hint>Price per unit{{ selectedProduct?.sellingPrice != null ? ' (from product)' : '' }}</mat-hint>
             </mat-form-field>
           </div>
         </div>
@@ -233,7 +236,8 @@ export class CreateInventoryDialogComponent implements OnInit {
 
   products: ProductDto[] = [];
   filteredProducts: ProductDto[] = [];
-  productSearchInput: string = '';
+  /** Model for the product input: string when typing to search, ProductDto when an option was selected (Material sets this). */
+  productSearchInput: string | ProductDto = '';
   selectedProduct: ProductDto | null = null;
   currentBranchContext: BranchDto | null = null;
   submitting = false;
@@ -268,72 +272,114 @@ export class CreateInventoryDialogComponent implements OnInit {
   loadProducts(): void {
     this.productsService.loadProducts();
     this.productsService.products$.subscribe(products => {
-      this.products = products;
-      this.filteredProducts = products;
+      this.products = products ?? [];
+      this.onProductSearchChange(); // Re-apply current search so dropdown stays in sync
     });
   }
 
   /**
-   * Handles product search input changes and filters products accordingly.
+   * Returns the current search text as a string (for filtering and "no results" check).
+   * When user has selected a product, productSearchInput is the object; we still return display string.
    */
-  onProductSearchChange(): void {
-    const searchTerm = this.productSearchInput?.toLowerCase().trim() || '';
-    
-    if (!searchTerm) {
-      this.filteredProducts = this.products;
+  getProductSearchText(): string {
+    const v = this.productSearchInput;
+    if (typeof v === 'string') return v;
+    if (v && typeof v === 'object' && 'id' in v) return this.displayProductFn(v);
+    return '';
+  }
+
+  /**
+   * Applies product-level unit cost and selling price to the inventory form.
+   * Called when a product is selected so financial fields default from the product.
+   */
+  private applyProductPricing(product: ProductDto): void {
+    this.inventory.unitCost = product.unitCost ?? undefined;
+    this.inventory.sellingPrice = product.sellingPrice ?? undefined;
+  }
+
+  /**
+   * Clears product-derived financial fields when product selection is cleared.
+   */
+  private clearProductPricing(): void {
+    this.inventory.unitCost = undefined;
+    this.inventory.sellingPrice = undefined;
+  }
+
+  /**
+   * Handles product input changes: typed search text or selected option (Material sets model to option value).
+   * When value is a ProductDto (from selection), we keep it and set selectedProduct/productId and apply product pricing.
+   * When value is a string (typing), we filter the list and clear selection.
+   */
+  onProductSearchChange(value?: string | ProductDto): void {
+    const raw = value !== undefined ? value : this.productSearchInput;
+
+    if (raw && typeof raw === 'object' && 'id' in raw && raw.id) {
+      this.selectedProduct = raw as ProductDto;
+      this.inventory.productId = (raw as ProductDto).id;
+      this.applyProductPricing(raw as ProductDto);
+      return;
+    }
+
+    const searchTerm = (typeof raw === 'string' ? raw : '').toLowerCase().trim();
+    if (searchTerm === '' && typeof raw === 'string') {
       this.selectedProduct = null;
       this.inventory.productId = '';
+      this.clearProductPricing();
+    }
+    if (!searchTerm) {
+      this.filteredProducts = [...this.products];
       return;
     }
 
     this.filteredProducts = this.products.filter(product => {
-      const nameMatch = product.name?.toLowerCase().includes(searchTerm);
-      const genericMatch = product.genericName?.toLowerCase().includes(searchTerm);
-      const strengthMatch = product.strength?.toLowerCase().includes(searchTerm);
-      const barcodeMatch = product.barcode?.toLowerCase().includes(searchTerm);
-      
+      if (!product) return false;
+      const nameMatch = (product.name ?? '').toLowerCase().includes(searchTerm);
+      const genericMatch = (product.genericName ?? '').toLowerCase().includes(searchTerm);
+      const strengthMatch = (product.strength ?? '').toLowerCase().includes(searchTerm);
+      const barcodeMatch = (product.barcode ?? '').toLowerCase().includes(searchTerm);
       return nameMatch || genericMatch || strengthMatch || barcodeMatch;
     });
   }
 
   /**
-   * Handles product search input focus - shows all products when focused.
+   * Handles product search input focus - shows all products when focused and no search text.
    */
   onProductSearchFocus(): void {
-    if (!this.productSearchInput) {
-      this.filteredProducts = this.products;
+    if (!this.getProductSearchText()) {
+      this.filteredProducts = [...this.products];
     }
   }
 
   /**
    * Handles product selection from autocomplete dropdown.
+   * Syncs selection state and applies product-level unit cost and selling price to the form.
    */
-  onProductSelected(event: any): void {
-    const product = event.option.value as ProductDto;
-    if (!product) return;
-    
+  onProductSelected(event: { option: { value: ProductDto | null } }): void {
+    const product = event.option.value as ProductDto | null;
+    if (!product?.id) return;
     this.selectedProduct = product;
     this.inventory.productId = product.id;
-    // Set the display string for the input field
-    this.productSearchInput = this.displayProductFn(product);
+    this.applyProductPricing(product);
   }
 
   /**
-   * Handles autocomplete panel closing - ensures input shows correct value.
+   * Handles autocomplete panel closing - no-op; Material uses displayWith to show the selected product.
    */
   onAutocompleteClosed(): void {
-    // If a product is selected, ensure the input shows the correct display value
-    if (this.selectedProduct) {
-      this.productSearchInput = this.displayProductFn(this.selectedProduct);
-    }
+    // Model is already the product object; displayWith will show the name
   }
 
   /**
-   * Display function for autocomplete - shows product name and strength.
+   * Display function for autocomplete - converts model value to the string shown in the input.
+   * When user selects an option, Material sets the model to the product object; this turns it into the display text.
    */
-  displayProductFn(product: ProductDto | null): string {
-    if (!product) return '';
-    return product.name + (product.strength ? ` (${product.strength})` : '');
+  displayProductFn(product: ProductDto | string | null | undefined): string {
+    if (product == null) return '';
+    if (typeof product === 'string') return product;
+    const name = (product.name ?? '').trim();
+    const strength = (product.strength ?? '').trim();
+    if (!name) return '';
+    return strength ? `${name} (${strength})` : name;
   }
 
   onSubmit(): void {

@@ -30,12 +30,14 @@ export interface UserDto {
 /**
  * LoginResponse mirrors backend response and is used to persist a session.
  * tokenType is typically "Bearer".
+ * requiresPasswordChange: when true, user must change password before accessing the app.
  */
 export interface LoginResponse {
   token: string;
   tokenType: string;
   expiresIn: number;
   user: UserDto;
+  requiresPasswordChange?: boolean;
 }
 
 /**
@@ -83,6 +85,11 @@ export class AuthService {
         localStorage.setItem('auth_token', tokenValue);
         localStorage.setItem('auth_token_exp', String(Date.now() + response.expiresIn));
         localStorage.setItem('auth_user', JSON.stringify(response.user));
+        if (response.requiresPasswordChange) {
+          localStorage.setItem('auth_requires_password_change', 'true');
+        } else {
+          localStorage.removeItem('auth_requires_password_change');
+        }
         
         // Clear any previous branch context when logging into a new tenant
         this.branchContextService.clearContext();
@@ -105,9 +112,15 @@ export class AuthService {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_token_exp');
     localStorage.removeItem('auth_user');
+    localStorage.removeItem('auth_requires_password_change');
     
     // Clear branch context when logging out
     this.branchContextService.clearContext();
+  }
+
+  /** True when user must change password before accessing the app (force-reset-on-first-login). */
+  requiresPasswordChange(): boolean {
+    return localStorage.getItem('auth_requires_password_change') === 'true';
   }
 
   /** Returns the Authorization header value (e.g., "Bearer <jwt>") if present. */
@@ -145,6 +158,15 @@ export class AuthService {
   hasAnyRole(roles: string[]): boolean {
     const user = this.getCurrentUser();
     return user ? roles.includes(user.role) : false;
+  }
+
+  /**
+   * Change password for the authenticated user (force-reset-on-first-login).
+   */
+  changePassword(payload: { currentPassword: string; newPassword: string }): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/change-password`, payload).pipe(
+      tap(() => localStorage.removeItem('auth_requires_password_change'))
+    );
   }
 
 }

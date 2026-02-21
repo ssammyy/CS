@@ -38,6 +38,7 @@ export class CreditManagementComponent implements OnInit {
   // Filters
   statusFilter: CreditStatus | undefined = undefined;
   showOverdueOnly = false;
+  filtersCollapsed = true;
 
   // Pagination
   currentPage = 0;
@@ -231,16 +232,22 @@ export class CreditManagementComponent implements OnInit {
     switch (method) {
       case PaymentMethod.CASH:
         return 'Cash';
-      case PaymentMethod.MPESA:
-        return 'M-Pesa';
-      case PaymentMethod.CARD:
-        return 'Card';
-      case PaymentMethod.INSURANCE:
-        return 'Insurance';
+      case PaymentMethod.TILL:
+        return 'Till';
+      case PaymentMethod.FAMILY_BANK:
+        return 'Family Bank';
+      case PaymentMethod.WATU_SIMU:
+        return 'Watu simu';
+      case PaymentMethod.MOGO:
+        return 'Mogo';
+      case PaymentMethod.ONFON_N1:
+        return 'Onfon N1';
+      case PaymentMethod.ONFON_N2:
+        return 'Onfon N2';
+      case PaymentMethod.ONFON_GLEX:
+        return 'Onfon Glex';
       case PaymentMethod.CREDIT:
         return 'Credit';
-      case PaymentMethod.CHEQUE:
-        return 'Cheque';
       default:
         return method;
     }

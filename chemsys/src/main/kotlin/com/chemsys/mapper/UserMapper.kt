@@ -30,6 +30,7 @@ class UserMapperImpl : UserMapper {
         id = requireNotNull(user.id),
         username = user.username,
         email = user.email,
+        phone = user.phone,
         role = user.role,
         roles = user.roles.map { it.name },
         tenantId = requireNotNull(user.tenant.id),

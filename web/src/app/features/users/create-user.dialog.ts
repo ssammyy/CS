@@ -22,7 +22,7 @@ import { environment } from '../../../environments/environment';
       <p class="text-gray-600 mt-1 text-sm">Add a new user to this tenant</p>
     </div>
     <form #f="ngForm" class="p-5 pt-3 space-y-6" (submit)="$event.preventDefault(); f.valid && submit(f.value)">
-      <div class="bg-white rounded-lg shadow p-6">
+      <div class="bg-white rounded-lg border border-gray-200 p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <mat-icon class="text-brand-sky">person</mat-icon>
           User Information
@@ -38,6 +38,12 @@ import { environment } from '../../../environments/environment';
             <mat-label>Email</mat-label>
             <mat-icon matPrefix class="mr-2 opacity-60">mail</mat-icon>
             <input matInput type="email" name="email" ngModel required />
+          </mat-form-field>
+
+          <mat-form-field class="w-full" color="primary">
+            <mat-label>Phone Number</mat-label>
+            <mat-icon matPrefix class="mr-2 opacity-60">phone</mat-icon>
+            <input matInput type="tel" name="phone" ngModel placeholder="e.g., +254712345678" />
           </mat-form-field>
 
           <mat-form-field class="w-full" color="primary">
@@ -80,9 +86,13 @@ export class CreateUserDialog implements OnInit {
   submit(value: any): void { this.ref.close(value); }
   
   ngOnInit(): void {
-    // Load roles
+    // Load roles; map TENANT_ADMIN to ADMIN and never send TENANT_ADMIN to backend
     this.http.get<{ roles: string[] }>(`${environment.apiBaseUrl}/users/roles`).subscribe({
-      next: (res) => { this.roles = (res.roles || []).filter(r => r !== 'PLATFORM_ADMIN'); if (this.roles.length === 0) this.roles = ['USER']; },
+      next: (res) => {
+        const raw = (res.roles || []).filter(r => r !== 'PLATFORM_ADMIN');
+        this.roles = [...new Set(raw.map(r => r === 'TENANT_ADMIN' ? 'ADMIN' : r))];
+        if (this.roles.length === 0) this.roles = ['USER'];
+      },
       error: () => {
         console.log('Failed to fetch roles, defaulting to USER');
       }

@@ -1,242 +1,378 @@
 <div class="sales-list-container">
   <!-- Header -->
   <div class="sales-header">
-    <div class="flex items-center gap-4">
-      <h1 class="text-2xl font-semibold text-gray-900">Sales History</h1>
-      <div class="flex items-center gap-2 text-sm" [class]="isBranchValid() ? 'text-gray-600' : 'text-red-600'">
-        <mat-icon fontIcon="receipt_long" class="text-base"></mat-icon>
+    <div class="header-left">
+      <h1 class="sales-title">Sales History</h1>
+      <div class="transaction-count" [class.invalid-context]="!isBranchValid()">
+        <mat-icon fontIcon="receipt_long" class="count-icon"></mat-icon>
         <span>{{ totalElements() }} transactions</span>
-        <span *ngIf="!isBranchValid()" class="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">
-          Invalid Context
-        </span>
+        <span *ngIf="!isBranchValid()" class="invalid-badge">Invalid Context</span>
       </div>
     </div>
-    <div class="flex items-center gap-3">
-    
-      
-      <button 
+    <div class="header-actions">
+      <button
+        mat-raised-button
+        color="primary"
         routerLink="/pos"
-        class="inline-flex items-center gap-2 px-4 py-2 bg-brand-coral text-white rounded-lg hover:bg-brand-coral/90 transition-colors">
-        <mat-icon fontIcon="add" class="text-base"></mat-icon>
+        class="new-sale-btn">
+        <mat-icon fontIcon="add"></mat-icon>
         New Sale
       </button>
     </div>
   </div>
 
+  <!-- Customer filter banner (when opened from customers "View Sales") -->
+  <mat-card *ngIf="isBranchValid() && selectedCustomerId()" class="customer-filter-banner">
+    <mat-card-content>
+      <mat-icon fontIcon="person" class="banner-icon"></mat-icon>
+      <span class="banner-text">Sales for <strong>{{ selectedCustomerName() || 'this customer' }}</strong></span>
+      <button mat-stroked-button color="primary" (click)="clearCustomerFilter()" class="clear-filter-btn">
+        <mat-icon>close</mat-icon>
+        Show all sales
+      </button>
+    </mat-card-content>
+  </mat-card>
+
   <!-- Branch Context Warning -->
-  <div *ngIf="!isBranchValid()" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-    <div class="flex items-center gap-3">
-      <mat-icon fontIcon="warning" class="text-red-600"></mat-icon>
-      <div>
-        <h3 class="text-sm font-medium text-red-800">Invalid Branch Context</h3>
-        <p class="text-sm text-red-600">Please select a valid branch to continue with sales operations.</p>
+  <mat-card *ngIf="!isBranchValid()" class="branch-warning-card">
+    <mat-card-content class="warning-content">
+      <mat-icon fontIcon="warning" class="warning-icon"></mat-icon>
+      <div class="warning-text">
+        <h3 class="warning-title">Invalid Branch Context</h3>
+        <p class="warning-message">Please select a valid branch to continue with sales operations.</p>
       </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Sales Summary Stats (Material cards) -->
+  <div *ngIf="isBranchValid()" class="summary-section">
+    <h2 class="summary-heading">Sales Summary</h2>
+    <p *ngIf="isCashierOrManager" class="summary-subtitle">Your sales across all branches</p>
+    <p *ngIf="isAdmin && !selectedBranch()" class="summary-subtitle">All branches combined</p>
+    <p *ngIf="isAdmin && selectedBranch()" class="summary-subtitle">{{ getSummaryBranchName() }}</p>
+    <p *ngIf="!isAdmin && !isCashierOrManager" class="summary-subtitle">{{ getSummaryBranchName() }}</p>
+
+    <div *ngIf="summaryLoading()" class="summary-loading">
+      <mat-spinner diameter="32"></mat-spinner>
+      <span>Loading summary...</span>
+    </div>
+
+    <div *ngIf="!summaryLoading() && summaryStats()" class="summary-cards">
+      <mat-card class="stat-card stat-today">
+        <mat-card-content>
+          <div class="stat-content">
+            <div class="stat-details">
+              <p class="stat-label">Today</p>
+              <p class="stat-value">{{ formatCurrency(summaryStats()!.salesStats.totalSalesToday) }}</p>
+              <p class="stat-meta">{{ summaryStats()!.salesStats.salesCountToday }} txns</p>
+            </div>
+            <mat-icon fontIcon="today" class="stat-icon"></mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="stat-card stat-week">
+        <mat-card-content>
+          <div class="stat-content">
+            <div class="stat-details">
+              <p class="stat-label">This Week</p>
+              <p class="stat-value">{{ formatCurrency(summaryStats()!.salesStats.totalSalesThisWeek) }}</p>
+              <p class="stat-meta">{{ summaryStats()!.salesStats.salesCountThisWeek }} txns</p>
+            </div>
+            <mat-icon fontIcon="calendar_today" class="stat-icon"></mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="stat-card stat-month">
+        <mat-card-content>
+          <div class="stat-content">
+            <div class="stat-details">
+              <p class="stat-label">This Month</p>
+              <p class="stat-value">{{ formatCurrency(summaryStats()!.salesStats.totalSalesThisMonth) }}</p>
+              <p class="stat-meta">{{ summaryStats()!.salesStats.salesCountThisMonth }} txns</p>
+            </div>
+            <mat-icon fontIcon="calendar_month" class="stat-icon"></mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="stat-card stat-year">
+        <mat-card-content>
+          <div class="stat-content">
+            <div class="stat-details">
+              <p class="stat-label">This Year</p>
+              <p class="stat-value">{{ formatCurrency(summaryStats()!.salesStats.totalSalesThisYear) }}</p>
+              <p class="stat-meta">{{ summaryStats()!.salesStats.salesCountThisYear }} txns</p>
+            </div>
+            <mat-icon fontIcon="calendar_view_month" class="stat-icon"></mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
+      <mat-card class="stat-card stat-avg" [class.stat-earnings]="isCashierOrManager">
+        <mat-card-content>
+          <div class="stat-content">
+            <div class="stat-details">
+              <p class="stat-label">{{ isCashierOrManager ? 'My Earnings' : 'Avg. Sale' }}</p>
+              <p class="stat-value">
+                {{ isCashierOrManager
+                  ? formatCurrency(summaryStats()!.salesStats.cashierTotalEarnings ?? 0)
+                  : formatCurrency(summaryStats()!.salesStats.averageSaleValue) }}
+              </p>
+              <p class="stat-meta">{{ isCashierOrManager ? '15% of profit this month' : 'per transaction' }}</p>
+            </div>
+            <mat-icon fontIcon="trending_up" class="stat-icon"></mat-icon>
+          </div>
+        </mat-card-content>
+      </mat-card>
     </div>
   </div>
 
-  <!-- Search and Filters -->
-  <div class="search-filters" [class.opacity-50]="!isBranchValid()" [class.pointer-events-none]="!isBranchValid()">
-    <div class="search-section">
-      <div class="search-input">
-        <mat-icon fontIcon="search" class="search-icon"></mat-icon>
+  <!-- Search and Filters (Material form fields + expansion panel) -->
+  <div class="search-filters" [class.disabled]="!isBranchValid()">
+    <div class="search-row">
+      <mat-form-field appearance="fill" class="search-field">
+        <mat-label>Search sales</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
         <input
           matInput
-          [(ngModel)]="searchQuery"
-          (ngModelChange)="onSearchChange()"
-          placeholder="Search by sale number or customer name..."
-          class="search-field">
-      </div>
+          [ngModel]="searchQuery()"
+          (ngModelChange)="searchQuery.set($event); onSearchChange()"
+          placeholder="Sale number or customer name..." />
+      </mat-form-field>
+
+      <mat-expansion-panel class="filters-panel" [expanded]="!filtersCollapsed()" (openedChange)="filtersCollapsed.set(!$event)">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon fontIcon="filter_list" class="panel-icon"></mat-icon>
+            Filters
+          </mat-panel-title>
+          <mat-panel-description>
+            {{ (selectedBranch() || selectedStatus() || selectedPaymentMethod() || selectedUser() || startDate() || endDate()) ? 'Active' : 'None' }}
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        <div class="filters-grid">
+          <mat-form-field *ngIf="isAdmin" appearance="fill" class="filter-form-field">
+            <mat-label>Branch</mat-label>
+            <mat-select
+              [ngModel]="selectedBranch()"
+              (ngModelChange)="selectedBranch.set($event); onFilterChange()">
+              <mat-option value="">All Branches</mat-option>
+              <mat-option *ngFor="let branch of branches()" [value]="branch.id">
+                {{ branch.name }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field *ngIf="isAdmin" appearance="fill" class="filter-form-field">
+            <mat-label>Cashier</mat-label>
+            <mat-select
+              [ngModel]="selectedUser()"
+              (ngModelChange)="selectedUser.set($event); onFilterChange()">
+              <mat-option value="">All Users</mat-option>
+              <mat-option *ngFor="let user of users()" [value]="user.id">
+                {{ user.username }} ({{ user.role }})
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="filter-form-field">
+            <mat-label>Status</mat-label>
+            <mat-select
+              [ngModel]="selectedStatus()"
+              (ngModelChange)="selectedStatus.set($event); onFilterChange()">
+              <mat-option value="">All Statuses</mat-option>
+              <mat-option *ngFor="let status of saleStatuses" [value]="status">
+                {{ status }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="filter-form-field">
+            <mat-label>Payment Method</mat-label>
+            <mat-select
+              [ngModel]="selectedPaymentMethod()"
+              (ngModelChange)="selectedPaymentMethod.set($event); onFilterChange()">
+              <mat-option value="">All Methods</mat-option>
+              <mat-option *ngFor="let method of paymentMethods" [value]="method">
+                {{ getPaymentMethodDisplayName(method) }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="filter-form-field">
+            <mat-label>Start Date</mat-label>
+            <input
+              matInput
+              [matDatepicker]="startDatePicker"
+              [ngModel]="startDate()"
+              (ngModelChange)="startDate.set($event); onFilterChange()"
+              [max]="endDate() || maxDateForFilter"
+              [matTooltip]="'Both dates required. Max range 365 days. No future dates.'" />
+            <mat-datepicker-toggle matIconSuffix [for]="startDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #startDatePicker></mat-datepicker>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="filter-form-field">
+            <mat-label>End Date</mat-label>
+            <input
+              matInput
+              [matDatepicker]="endDatePicker"
+              [ngModel]="endDate()"
+              (ngModelChange)="endDate.set($event); onFilterChange()"
+              [min]="startDate()"
+              [max]="maxDateForFilter"
+              [matTooltip]="'Both dates required. Max range 365 days. No future dates.'" />
+            <mat-datepicker-toggle matIconSuffix [for]="endDatePicker"></mat-datepicker-toggle>
+            <mat-datepicker #endDatePicker></mat-datepicker>
+          </mat-form-field>
+        </div>
+
+        <div class="filters-actions">
+          <button mat-stroked-button type="button" (click)="clearFilters()">
+            <mat-icon fontIcon="clear"></mat-icon>
+            Clear Filters
+          </button>
+        </div>
+      </mat-expansion-panel>
     </div>
+  </div>
 
-    <div class="filters-section">
-      <div class="filter-group">
-        <label class="filter-label">Status:</label>
-        <select 
-          [(ngModel)]="selectedStatus"
-          (ngModelChange)="onFilterChange()"
-          class="filter-select">
-          <option value="">All Statuses</option>
-          <option *ngFor="let status of saleStatuses" [value]="status">
-            {{ status }}
-          </option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label class="filter-label">Payment Method:</label>
-        <select 
-          [(ngModel)]="selectedPaymentMethod"
-          (ngModelChange)="onFilterChange()"
-          class="filter-select">
-          <option value="">All Methods</option>
-          <option *ngFor="let method of paymentMethods" [value]="method">
-            {{ method }}
-          </option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label class="filter-label">Start Date:</label>
-        <input
-          type="date"
-          [(ngModel)]="startDate"
-          (ngModelChange)="onFilterChange()"
-          class="filter-input">
-      </div>
-
-      <div class="filter-group">
-        <label class="filter-label">End Date:</label>
-        <input
-          type="date"
-          [(ngModel)]="endDate"
-          (ngModelChange)="onFilterChange()"
-          class="filter-input">
-      </div>
-
-      <button 
-        (click)="clearFilters()"
-        class="clear-filters-btn">
-        <mat-icon fontIcon="clear" class="text-base"></mat-icon>
-        Clear Filters
-      </button>
-    </div>
+  <!-- Filtered Total Summary -->
+  <div *ngIf="!loading() && sales().length > 0 && totalFilteredAmount() != null" class="filtered-total-bar">
+    <span class="filtered-total-label">Total of filtered sales:</span>
+    <span class="filtered-total-amount">{{ formatCurrency(totalFilteredAmount()!) }}</span>
   </div>
 
   <!-- Sales Table -->
-  <div class="sales-table-container" [class.opacity-50]="!isBranchValid()" [class.pointer-events-none]="!isBranchValid()">
-    <div *ngIf="loading()" class="loading-state">
-      <mat-icon fontIcon="hourglass_empty" class="animate-spin text-4xl text-brand-sky"></mat-icon>
-      <p class="text-gray-600">Loading sales...</p>
-    </div>
+  <mat-card class="sales-table-card" [class.disabled]="!isBranchValid()">
+    <mat-card-content class="table-card-content">
+      <div *ngIf="loading()" class="loading-state">
+        <mat-spinner diameter="48"></mat-spinner>
+        <p>Loading sales...</p>
+      </div>
 
-    <div *ngIf="!loading() && sales().length === 0" class="empty-state">
-      <mat-icon fontIcon="receipt_long" class="text-6xl text-gray-300"></mat-icon>
-      <h3 class="text-lg font-medium text-gray-900">No sales found</h3>
-      <p class="text-gray-500">Try adjusting your search criteria or create a new sale.</p>
-      <button 
-        routerLink="/pos"
-        class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-brand-coral text-white rounded-lg hover:bg-brand-coral/90 transition-colors">
-        <mat-icon fontIcon="add" class="text-base"></mat-icon>
-        Create Sale
-      </button>
-    </div>
+      <div *ngIf="!loading() && sales().length === 0" class="empty-state">
+        <mat-icon fontIcon="receipt_long" class="empty-icon"></mat-icon>
+        <h3>No sales found</h3>
+        <p>Try adjusting your search criteria or create a new sale.</p>
+        <button mat-raised-button color="primary" routerLink="/pos" class="empty-action">
+          <mat-icon fontIcon="add"></mat-icon>
+          Create Sale
+        </button>
+      </div>
 
-    <div *ngIf="!loading() && sales().length > 0" class="table-wrapper">
-      <table mat-table [dataSource]="sales()" class="sales-table">
-        <!-- Sale Number Column -->
-        <ng-container matColumnDef="saleNumber">
-          <th mat-header-cell *matHeaderCellDef>Sale #</th>
-          <td mat-cell *matCellDef="let sale">
-            <div class="sale-number">
-              <span class="font-medium text-brand-sky">{{ sale.saleNumber }}</span>
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Customer Name Column -->
-        <ng-container matColumnDef="customerName">
-          <th mat-header-cell *matHeaderCellDef>Customer</th>
-          <td mat-cell *matCellDef="let sale">
-            <div class="customer-info">
-              <span class="customer-name">{{ sale.customerName || 'Walk-in Customer' }}</span>
-              <span *ngIf="sale.customerPhone" class="customer-phone">{{ sale.customerPhone }}</span>
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Total Amount Column -->
-        <ng-container matColumnDef="totalAmount">
-          <th mat-header-cell *matHeaderCellDef>Total</th>
-          <td mat-cell *matCellDef="let sale">
-            <span class="total-amount">{{ formatCurrency(sale.totalAmount) }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Status Column -->
-        <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>Status</th>
-          <td mat-cell *matCellDef="let sale">
-            <div class="status-container">
-              <span class="status-badge" [ngClass]="getStatusBadgeClass(sale.status)">
-                {{ sale.status }}
-              </span>
-              <span *ngIf="sale.returnStatus === 'FULL'" class="returned-badge full-return">
-                <mat-icon fontIcon="undo" class="returned-icon"></mat-icon>
-                Fully Returned
-              </span>
-              <span *ngIf="sale.returnStatus === 'PARTIAL'" class="returned-badge partial-return">
-                <mat-icon fontIcon="undo" class="returned-icon"></mat-icon>
-                Partially Returned
-              </span>
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Payment Method Column -->
-        <ng-container matColumnDef="paymentMethod">
-          <th mat-header-cell *matHeaderCellDef>Payment</th>
-          <td mat-cell *matCellDef="let sale">
-            <div class="payment-method">
-              <mat-icon [fontIcon]="getPaymentMethodIcon(sale.payments[0]?.paymentMethod)" class="payment-icon"></mat-icon>
-              <span>{{ sale.payments[0]?.paymentMethod || 'N/A' }}</span>
-            </div>
-          </td>
-        </ng-container>
-
-        <!-- Sale Date Column -->
-        <ng-container matColumnDef="saleDate">
-          <th mat-header-cell *matHeaderCellDef>Date</th>
-          <td mat-cell *matCellDef="let sale">
-            <span class="sale-date">{{ formatDate(sale.saleDate) }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Cashier Name Column -->
-        <ng-container matColumnDef="cashierName">
-          <th mat-header-cell *matHeaderCellDef>Cashier</th>
-          <td mat-cell *matCellDef="let sale">
-            <span class="cashier-name">{{ sale.cashierName }}</span>
-          </td>
-        </ng-container>
-
-        <!-- Actions Column -->
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>Actions</th>
-          <td mat-cell *matCellDef="let sale">
-            <div class="action-buttons">
-              <button 
-                (click)="viewSale(sale)"
-                class="action-btn view-btn"
-                matTooltip="View Details">
-                <mat-icon fontIcon="visibility" class="text-sm"></mat-icon>
+      <div *ngIf="!loading() && sales().length > 0" class="table-wrapper">
+        <table mat-table [dataSource]="sales()" class="sales-table">
+          <ng-container matColumnDef="saleNumber">
+            <th mat-header-cell *matHeaderCellDef>Sale #</th>
+            <td mat-cell *matCellDef="let sale">
+              <span class="sale-number">{{ sale.saleNumber }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="branchName">
+            <th mat-header-cell *matHeaderCellDef>Branch</th>
+            <td mat-cell *matCellDef="let sale">
+              <span class="branch-info">{{ sale.branchName }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="customerName">
+            <th mat-header-cell *matHeaderCellDef>Customer</th>
+            <td mat-cell *matCellDef="let sale">
+              <div class="customer-info">
+                <span class="customer-name">{{ sale.customerName || 'Walk-in Customer' }}</span>
+                <span *ngIf="sale.customerPhone" class="customer-phone">{{ sale.customerPhone }}</span>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="totalAmount">
+            <th mat-header-cell *matHeaderCellDef>Total</th>
+            <td mat-cell *matCellDef="let sale">
+              <span class="total-amount">{{ formatCurrency(sale.totalAmount) }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let sale">
+              <div class="status-container">
+                <span class="status-badge" [ngClass]="getStatusBadgeClass(sale.status)">
+                  {{ sale.status }}
+                </span>
+                <span *ngIf="sale.returnStatus === 'FULL'" class="returned-badge full-return">
+                  <mat-icon fontIcon="undo" class="returned-icon"></mat-icon>
+                  Fully Returned
+                </span>
+                <span *ngIf="sale.returnStatus === 'PARTIAL'" class="returned-badge partial-return">
+                  <mat-icon fontIcon="undo" class="returned-icon"></mat-icon>
+                  Partially Returned
+                </span>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="paymentMethod">
+            <th mat-header-cell *matHeaderCellDef>Payment</th>
+            <td mat-cell *matCellDef="let sale">
+              <div class="payment-method">
+                <mat-icon [fontIcon]="getPaymentMethodIcon(sale.payments[0]?.paymentMethod)" class="payment-icon"></mat-icon>
+                <span>{{ sale.payments[0]?.paymentMethod || 'N/A' }}</span>
+              </div>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="saleDate">
+            <th mat-header-cell *matHeaderCellDef>Date</th>
+            <td mat-cell *matCellDef="let sale">
+              <span class="sale-date">{{ formatDate(sale.saleDate) }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="cashierName">
+            <th mat-header-cell *matHeaderCellDef>Cashier</th>
+            <td mat-cell *matCellDef="let sale">
+              <span class="cashier-name">{{ sale.cashierName }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="commission">
+            <th mat-header-cell *matHeaderCellDef>Commission</th>
+            <td mat-cell *matCellDef="let sale">
+              <span class="commission-amount">{{ formatCurrency(sale.commission ?? 0) }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let sale">
+              <button
+                mat-icon-button
+                [matMenuTriggerFor]="saleActionsMenu"
+                class="action-menu-trigger"
+                matTooltip="Actions">
+                <mat-icon fontIcon="more_vert"></mat-icon>
               </button>
-              
-              <button 
-                (click)="printReceipt(sale)"
-                class="action-btn print-btn"
-                matTooltip="Print Receipt">
-                <mat-icon fontIcon="print" class="text-sm"></mat-icon>
-              </button>
-              
-              <button 
-                *ngIf="sale.status === 'COMPLETED'"
-                (click)="processReturn(sale)"
-                class="action-btn return-btn"
-                matTooltip="Process Return">
-                <mat-icon fontIcon="undo" class="text-sm"></mat-icon>
-              </button>
-            </div>
-          </td>
-        </ng-container>
+              <mat-menu #saleActionsMenu="matMenu" class="sale-actions-menu">
+                <button mat-menu-item (click)="viewSale(sale)">
+                  <mat-icon fontIcon="visibility"></mat-icon>
+                  <span>View Details</span>
+                </button>
+                <button mat-menu-item (click)="printReceipt(sale)">
+                  <mat-icon fontIcon="print"></mat-icon>
+                  <span>Print Receipt</span>
+                </button>
+                <button
+                  *ngIf="sale.status === 'COMPLETED'"
+                  mat-menu-item
+                  (click)="processReturn(sale)">
+                  <mat-icon fontIcon="undo"></mat-icon>
+                  <span>Process Return</span>
+                </button>
+              </mat-menu>
+            </td>
+          </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="table-row"></tr>
-      </table>
-    </div>
-  </div>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" class="table-row"></tr>
+        </table>
+      </div>
+    </mat-card-content>
+  </mat-card>
 
   <!-- Pagination -->
-  <div *ngIf="!loading() && sales().length > 0" class="pagination-container" [class.opacity-50]="!isBranchValid()" [class.pointer-events-none]="!isBranchValid()">
+  <div *ngIf="!loading() && sales().length > 0" class="pagination-container" [class.disabled]="!isBranchValid()">
     <mat-paginator
       [length]="totalElements()"
       [pageSize]="pageSize()"

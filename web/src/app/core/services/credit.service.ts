@@ -198,9 +198,12 @@ export enum CreditStatus {
 
 export enum PaymentMethod {
   CASH = 'CASH',
-  MPESA = 'MPESA',
-  CARD = 'CARD',
-  INSURANCE = 'INSURANCE',
-  CREDIT = 'CREDIT',
-  CHEQUE = 'CHEQUE'
+  TILL = 'TILL',
+  FAMILY_BANK = 'FAMILY_BANK',
+  WATU_SIMU = 'WATU_SIMU',
+  MOGO = 'MOGO',
+  ONFON_N1 = 'ONFON_N1',
+  ONFON_N2 = 'ONFON_N2',
+  ONFON_GLEX = 'ONFON_GLEX',
+  CREDIT = 'CREDIT'
 }

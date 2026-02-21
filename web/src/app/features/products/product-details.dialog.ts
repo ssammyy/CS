@@ -120,6 +120,25 @@ export interface ProductDetailsDialogData {
           </div>
         </div>
 
+        <!-- Pricing (product-level cost and selling price) -->
+        <div *ngIf="data.product.unitCost != null || data.product.sellingPrice != null" class="bg-white rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <mat-icon class="text-brand-sky">payments</mat-icon>
+            Pricing
+          </h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div *ngIf="data.product.unitCost != null">
+              <label class="text-sm font-medium text-gray-600">Unit Cost</label>
+              <p class="text-xl font-semibold text-gray-900">{{ data.product.unitCost | currency:'KES' }}</p>
+            </div>
+            <div *ngIf="data.product.sellingPrice != null">
+              <label class="text-sm font-medium text-gray-600">Selling Price</label>
+              <p class="text-xl font-semibold text-gray-900">{{ data.product.sellingPrice | currency:'KES' }}</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Stock Management -->
         <div class="bg-white rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">

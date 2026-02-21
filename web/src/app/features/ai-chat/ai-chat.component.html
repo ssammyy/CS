@@ -1,0 +1,164 @@
+<div class="h-full flex flex-col bg-[#f8f9fa]">
+  <!-- Minimal Header (only when messages exist) -->
+  @if (messages().length > 0) {
+    <div class="flex-shrink-0 bg-white/80 backdrop-blur-sm border-b border-gray-200/50 px-6 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="h-8 w-8 rounded-full bg-gradient-to-br from-brand-sky to-brand-mint flex items-center justify-center">
+            <mat-icon fontIcon="smart_toy" class="text-white text-sm"></mat-icon>
+          </div>
+          <span class="text-sm font-medium text-gray-700">AI Business Advisor</span>
+        </div>
+        <button
+          mat-icon-button
+          (click)="clearConversation()"
+          class="text-gray-400 hover:text-gray-600 hover:bg-gray-100/50 rounded-lg"
+          title="Clear conversation"
+        >
+          <mat-icon fontIcon="delete_outline" class="text-base"></mat-icon>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Messages Container -->
+  <div
+    #messagesContainer
+    class="flex-1 overflow-y-auto px-4 md:px-8 py-8 custom-scrollbar"
+    [class.flex]="messages().length <= 1"
+    [class.items-center]="messages().length <= 1"
+    [class.justify-center]="messages().length <= 1"
+  >
+    <!-- Welcome Screen (when no messages) -->
+    @if (messages().length === 0) {
+      <div class="w-full max-w-2xl mx-auto text-center space-y-8">
+        <div class="flex items-center justify-center gap-2 mb-2">
+          <div class="h-12 w-12 rounded-full bg-gradient-to-br from-brand-sky to-brand-mint flex items-center justify-center shadow-sm">
+            <mat-icon fontIcon="smart_toy" class="text-white text-2xl"></mat-icon>
+          </div>
+          <h1 class="text-2xl font-semibold text-gray-800">AI Business Advisor</h1>
+        </div>
+        <p class="text-lg text-gray-600 font-medium">Where should we start?</p>
+        
+        <!-- Quick Action Buttons on Welcome Screen -->
+        @if (suggestions().length > 0 && !loading()) {
+          <div class="flex flex-wrap gap-3 justify-center pt-4">
+            @for (suggestion of suggestions(); track $index) {
+              <button
+                (click)="sendSuggestion(suggestion)"
+                class="px-5 py-3 rounded-full bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow-md font-medium"
+              >
+                {{ suggestion }}
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Messages List -->
+    <div class="w-full max-w-3xl mx-auto space-y-6" [class.hidden]="messages().length === 0">
+      @for (message of messages(); track $index) {
+        <div
+          class="flex gap-4"
+          [class.justify-end]="message.role === 'user'"
+          [class.justify-start]="message.role === 'assistant'"
+        >
+          @if (message.role === 'assistant') {
+            <div class="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-br from-brand-sky to-brand-mint flex items-center justify-center shadow-sm">
+              <mat-icon fontIcon="smart_toy" class="text-white text-sm"></mat-icon>
+            </div>
+          }
+          
+          <div
+            class="max-w-[85%] rounded-2xl px-5 py-4 shadow-sm"
+            [ngClass]="{
+              'bg-white border border-gray-200/50': message.role === 'user',
+              'bg-white border border-gray-200/30': message.role === 'assistant'
+            }"
+          >
+            @if (message.role === 'assistant') {
+              <div class="text-[15px] text-gray-800 leading-relaxed prose prose-sm max-w-none" [innerHTML]="renderMarkdown(message.content)"></div>
+            } @else {
+              <p class="text-[15px] text-gray-800 leading-relaxed whitespace-pre-wrap">{{ message.content }}</p>
+            }
+          </div>
+
+          @if (message.role === 'user') {
+            <div class="flex-shrink-0 h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+              <mat-icon fontIcon="person" class="text-gray-600 text-sm"></mat-icon>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    @if (loading()) {
+      <div class="w-full max-w-3xl mx-auto flex gap-4 justify-start">
+        <div class="flex-shrink-0 h-8 w-8 rounded-full bg-gradient-to-br from-brand-sky to-brand-mint flex items-center justify-center shadow-sm">
+          <mat-icon fontIcon="smart_toy" class="text-white text-sm"></mat-icon>
+        </div>
+        <div class="bg-white border border-gray-200/30 rounded-2xl px-5 py-4 shadow-sm">
+          <div class="flex items-center gap-2">
+            <span class="text-[15px] text-gray-600">Typing</span>
+            <div class="flex gap-1.5">
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></span>
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
+              <span class="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Input Area -->
+  <div class="flex-shrink-0 bg-white/80 backdrop-blur-sm border-t border-gray-200/50 px-4 md:px-6 py-6">
+    <div class="max-w-3xl mx-auto space-y-4">
+      <!-- Quick Action Buttons (show suggestions when available) -->
+      @if (suggestions().length > 0 && !loading() && messages().length > 0) {
+        <div class="flex flex-wrap gap-2 justify-center">
+          @for (suggestion of suggestions(); track $index) {
+            <button
+              (click)="sendSuggestion(suggestion)"
+              class="px-4 py-2.5 rounded-full bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-sm text-gray-700 transition-all duration-200 shadow-sm hover:shadow"
+            >
+              {{ suggestion }}
+            </button>
+          }
+        </div>
+      }
+
+      <!-- Input Field -->
+      <div class="relative">
+        <div class="flex items-center gap-2 px-4 border border-gray-300 rounded-full bg-white shadow-sm hover:shadow-md transition-shadow focus-within:border-brand-sky focus-within:ring-2 focus-within:ring-brand-sky/10">
+          <button
+            mat-icon-button
+            class="text-gray-400 hover:text-gray-600 -ml-2"
+            title="Attach"
+          >
+            <mat-icon fontIcon="add" class="text-xl"></mat-icon>
+          </button>
+          <input
+            #messageInput
+            type="text"
+            [(ngModel)]="currentMessage"
+            (keydown)="onKeyPress($event)"
+            [disabled]="loading()"
+            placeholder="Ask AI Business Advisor"
+            class="flex-1 py-3.5 px-2 bg-transparent border-0 outline-none text-[15px] text-gray-800 placeholder:text-gray-400 disabled:opacity-50"
+          />
+          <button
+            mat-icon-button
+            (click)="sendMessage()"
+            [disabled]="loading() || !currentMessage().trim()"
+            class="text-gray-400 hover:text-brand-sky disabled:opacity-30 disabled:cursor-not-allowed transition-colors -mr-2"
+            title="Send message"
+          >
+            <mat-icon fontIcon="send" class="text-xl"></mat-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
